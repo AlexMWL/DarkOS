@@ -35,112 +35,147 @@ struct FileManagerView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // --- SYSTEM WINDOW HEADER BAR ---
                 HStack {
-                    Text(viewTrashBinMode ? "🗑️ RECYCLE_BIN_SUBSYSTEM" : "⚡ SYSTEM_DEVELOPMENT_KIT // MANIFEST")
-                        .font(.system(size: 12, weight: .black, design: .monospaced))
-                        .foregroundColor(viewTrashBinMode ? .orange : .red)
+                    Image(systemName: "folder.fill").foregroundColor(.yellow)
+                    Text(viewTrashBinMode ? "Recycle Bin subsystem" : "File Explorer // Network Storage")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                     Spacer()
-                    Button("MINIMIZE") { isPresented = false }
-                        .font(.system(size: 11, design: .monospaced)).foregroundColor(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .border(Color.white.opacity(0.3), width: 1)
+                    Button(action: { isPresented = false }) {
+                        Text("CLOSE")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.6))
+                            .cornerRadius(3)
+                    }
                 }
-                .padding().background(Color.white.opacity(0.03))
+                .padding()
+                .background(Color.white.opacity(0.06))
                 
+                // --- WIN7 CORE TOOLBAR BAR NAVIGATION MATRIX ---
                 HStack(spacing: 12) {
                     if !viewTrashBinMode {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Button(action: { fs.navigateBack() }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 11, weight: .bold))
+                                Image(systemName: "arrow.left.circle.fill")
+                                    .font(.title3)
                                     .foregroundColor(fs.backStack.isEmpty ? .gray : .red)
                             }
                             .disabled(fs.backStack.isEmpty)
                             
                             Button(action: { fs.navigateForward() }) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .bold))
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.title3)
                                     .foregroundColor(fs.forwardStack.isEmpty ? .gray : .red)
                             }
                             .disabled(fs.forwardStack.isEmpty)
                             
                             Button(action: { showNewFolderAlert = true }) {
-                                Image(systemName: "folder.badge.plus")
-                                    .font(.system(size: 12))
+                                Image(systemName: "folder.badge.plus.fill")
+                                    .font(.system(size: 16))
                                     .foregroundColor(.green)
                             }
                         }
                     }
                     
-                    Text(getCurrentPathDisplay())
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.gray)
-                        .lineLimit(1)
-                    
-                    Spacer()
+                    // Glass Address Bar Display Row Panel
+                    HStack {
+                        Image(systemName: "desktopcomputer").font(.caption).foregroundColor(.gray)
+                        Text(getCurrentPathDisplay())
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.8))
+                        Spacer()
+                    }
+                    .padding(8)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.15), lineWidth: 1))
                     
                     if !viewTrashBinMode && fileClipboard != nil {
                         Button(action: { executePasteAction() }) {
-                            Text("PASTE").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.yellow)
+                            Text("PASTE").font(.system(size: 11, weight: .black, design: .rounded)).foregroundColor(.yellow)
                         }
-                        .padding(.trailing, 8)
                     }
                     
                     Button(action: { viewTrashBinMode.toggle() }) {
-                        Text(viewTrashBinMode ? "DRIVE VIEW" : "TRASH BIN")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundColor(viewTrashBinMode ? .red : .orange)
+                        Text(viewTrashBinMode ? "Computer Drives" : "Recycle Bin")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(viewTrashBinMode ? Color.green.opacity(0.4) : Color.orange.opacity(0.4))
+                            .cornerRadius(4)
                     }
                 }
-                .padding(.horizontal).padding(.vertical, 10)
-                .background(Color.white.opacity(0.01))
-                .border(Color.white.opacity(0.05), width: 1)
+                .padding()
+                .background(Color.white.opacity(0.02))
                 
+                // --- COMPILER INJECTION CONSOLE AREA ---
                 if !viewTrashBinMode {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(">>> OVER-THE-AIR COMPILER INJECTION").font(.system(size: 10, design: .monospaced)).foregroundColor(.red.opacity(0.7))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Over-The-Air System Compiler Workspace")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(.red.opacity(0.8))
                         
-                        HStack {
-                            TextField("REMOTELINK.HTML", text: $webURLString)
-                                .font(.system(size: 11, design: .monospaced)).padding(10).background(Color.white.opacity(0.05)).foregroundColor(.white).autocapitalization(.none)
+                        HStack(spacing: 8) {
+                            TextField("URL Source Link...", text: $webURLString)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 12, design: .monospaced))
+                                .padding(8)
+                                .background(Color.white.opacity(0.06))
+                                .cornerRadius(4)
                             
-                            TextField("ID", text: $downloadName)
-                                .font(.system(size: 11, design: .monospaced)).padding(10).frame(width: 90).background(Color.white.opacity(0.05)).foregroundColor(.white).autocapitalization(.none)
+                            TextField("App Label", text: $downloadName)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 12, design: .monospaced))
+                                .padding(8)
+                                .frame(width: 100)
+                                .background(Color.white.opacity(0.06))
+                                .cornerRadius(4)
                             
-                            Button("COMPILE") {
+                            Button(action: {
                                 fs.downloadApp(from: webURLString, saveAs: downloadName) { success in
-                                    installAlertMessage = success ? "MANIFEST RECOMPILED SUCCESSFUL." : "PACKET TRANSMISSION ERROR."
+                                    installAlertMessage = success ? "MANIFEST MODULE COMPILED SUCCESSFULLY." : "PACKET DISCOVERY INTERRUPT EXCEPTION."
                                     showInstallAlert = true
                                     if success { webURLString = ""; downloadName = "" }
                                 }
+                            }) {
+                                Text("COMPILE")
+                                    .font(.system(size: 11, weight: .black, design: .rounded))
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 16)
+                                    .background(Color.red)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(4)
                             }
-                            .font(.system(size: 11, weight: .black, design: .monospaced)).padding(.vertical, 10).padding(.horizontal, 15).background(Color.red).foregroundColor(.black)
                         }
                         
                         Button(action: { showLocalFilePicker = true }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.down.on.square.fill")
-                                Text("INJECT MODULE VIA STORAGE SOURCE (.HTML / .JS)")
-                            }
-                            .font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).padding(12).background(Color.red.opacity(0.15))
-                            .overlay(RoundedRectangle(cornerRadius: 1).stroke(Color.red.opacity(0.5), lineWidth: 1))
+                            Label("Inject External Module Node Asset (.html / .js)", systemImage: "square.and.arrow.down.fill")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(10)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.2), lineWidth: 1))
                         }
                     }
-                    .padding().background(Color.red.opacity(0.02))
+                    .padding()
+                    .background(Color.white.opacity(0.03))
                 }
                 
-                Text(viewTrashBinMode ? ">>> TRASH BUFFER ROW INDEX" : ">>> DRIVE MAP ROW INDEX")
-                    .font(.system(size: 10, design: .monospaced)).foregroundColor(.red.opacity(0.7)).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.top, 10)
-                
+                // --- SECTOR RECORD VIEW PANEL ROWS ---
                 List {
                     let items = viewTrashBinMode ? fs.listTrashContents() : fs.listCurrentDirectoryContents()
                     
                     if items.isEmpty {
-                        Text("NO DISK RECORD ENTRIES FOUND.")
-                            .font(.system(size: 11, design: .monospaced)).foregroundColor(.gray)
+                        Text("No data structures mapped inside this segment cluster.")
+                            .font(.system(size: 12, design: .rounded)).foregroundColor(.gray)
                             .listRowBackground(Color.black)
-                            .padding()
                     } else {
                         ForEach(items, id: \.self) { file in
                             let isDir = checkIsDirectory(url: file)
@@ -149,11 +184,14 @@ struct FileManagerView: View {
                                 Image(systemName: isDir ? "folder.fill" : fileIcon(for: file))
                                     .foregroundColor(viewTrashBinMode ? .orange : (isDir ? .yellow : .red))
                                 Text(file.lastPathComponent.uppercased())
-                                    .font(.system(size: 13, design: .monospaced)).foregroundColor(.white)
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundColor(.white)
                                 Spacer()
-                                Text(isDir ? "DIR" : "\(file.pathExtension.uppercased())")
-                                    .font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.3))
+                                Text(isDir ? "File Folder" : "\(file.pathExtension.uppercased()) File")
+                                    .font(.system(size: 10, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.3))
                             }
+                            .padding(.vertical, 4)
                             .listRowBackground(Color.black)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -165,7 +203,6 @@ struct FileManagerView: View {
                                 }
                             }
                             .contextMenu {
-                                // FIXED: Extracted subview removes the processing tree expression overflow completely
                                 FileContextMenu(
                                     file: file,
                                     isDir: isDir,
@@ -248,7 +285,7 @@ struct FileManagerView: View {
     private func getCurrentPathDisplay() -> String {
         if viewTrashBinMode { return "ROOT://VIRTUAL_VOLUMES/.TRASH" }
         let subPath = fs.currentDirectory.path.replacingOccurrences(of: fs.rootDirectory.path, with: "")
-        return "ROOT://C_DRIVE" + subPath.uppercased()
+        return "C:\\DarkOS\\Drive" + subPath.replacingOccurrences(of: "/", with: "\\").uppercased()
     }
     
     private func checkIsDirectory(url: URL) -> Bool {
@@ -266,21 +303,19 @@ struct FileManagerView: View {
     }
     
     private func routeFileSelection(_ file: URL) {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            let ext = file.pathExtension.lowercased()
-            // FIXED: Route both HTML and JS files through the system alert confirmation engine
-            if ext == "html" || ext == "js" {
-                htmlAlertFile = file
-                showHTMLChoiceAlert = true
-            } else {
-                selectedFile = file
-            }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let ext = file.pathExtension.lowercased()
+        if ext == "html" || ext == "js" {
+            htmlAlertFile = file
+            showHTMLChoiceAlert = true
+        } else {
+            selectedFile = file
         }
+    }
     
     private func executePasteAction() {
         guard let source = fileClipboard else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        
         if clipboardIsCutOperation {
             fs.moveFile(fileURL: source, to: fs.currentDirectory)
             fileClipboard = nil
@@ -290,6 +325,7 @@ struct FileManagerView: View {
     }
 }
 
+// MARK: - FILE EXPLORER CONTEXT MENU SUBVIEW
 struct FileContextMenu: View {
     let file: URL
     let isDir: Bool

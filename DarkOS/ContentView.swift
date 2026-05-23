@@ -27,12 +27,19 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // High-end Red/Black Gradient Wallpaper simulating a real desktop background canvas
+            LinearGradient(
+                colors: [Color(red: 0.15, green: 0, blue: 0), Color.black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
+            // Background Digital Matrix / Grid lines
             GeometryReader { geo in
                 ZStack(alignment: .top) {
                     Path { path in
-                        let step: CGFloat = 30
+                        let step: CGFloat = 40
                         for x in stride(from: 0, to: geo.size.width, by: step) {
                             path.move(to: CGPoint(x: x, y: 0)); path.addLine(to: CGPoint(x: x, y: geo.size.height))
                         }
@@ -40,7 +47,7 @@ struct ContentView: View {
                             path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: geo.size.width, y: y))
                         }
                     }
-                    .stroke(Color.red.opacity(0.04), lineWidth: 1)
+                    .stroke(Color.red.opacity(0.03), lineWidth: 1)
                     
                     if isGlitching {
                         let context = CIContext()
@@ -51,14 +58,14 @@ struct ContentView: View {
                                 .renderingMode(.template)
                                 .foregroundColor(Double.random(in: 0...1) > 0.3 ? .white : .red)
                                 .blendMode(.screen)
-                                .opacity(Double.random(in: 0.15...0.45))
+                                .opacity(Double.random(in: 0.1...0.3))
                                 .frame(width: geo.size.width, height: Double.random(in: 0...1) > 0.7 ? geo.size.height : CGFloat.random(in: 20...120))
                                 .offset(y: glitchYOffset)
                         }
                     }
                 }
                 .onReceive(glitchTimer) { _ in
-                    if Double.random(in: 0...1) < 0.55 {
+                    if Double.random(in: 0...1) < 0.45 {
                         glitchYOffset = CGFloat.random(in: 0...(geo.size.height - 150))
                         isGlitching = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.04...0.12)) {
@@ -70,98 +77,133 @@ struct ContentView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Top Status Header Panel
+                // --- TOP AERO HEADER PANEL WIDGET ---
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("DARKOS MULTI-KERNEL // POOL_ACTIVE")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(.red)
-                            .shadow(color: .red.opacity(0.8), radius: 4)
-                        Text("ACTIVE_THREADS: \(pm.runningProcesses.count) // MEM_CONSUMED: \(String(format: "%.1f", pm.currentRamUsage)) MB")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.red.opacity(0.6))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("DARKOS MULTI-KERNEL // DESKTOP")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                            .shadow(color: .red, radius: 2)
+                        Text("PID_POOL: \(pm.runningProcesses.count) Active Processes  |  RAM: \(String(format: "%.1f", pm.currentRamUsage)) MB")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.7))
                     }
                     Spacer()
                     
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                        showTaskManager.toggle()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "gauge.with.needle.fill")
-                            Text("TASK_MGR")
+                    // --- UPDATE BOTH BUTTONS INSIDE YOUR TOP AERO HEADER PANEL ---
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                            // FIXED: Reverted targeting back to the system notification trigger ID
+                            NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
+                        }) {
+                            Label("Task Manager", systemImage: "gauge.with.needle.fill")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 12)
+                                .background(Color.white.opacity(0.12))
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.2), lineWidth: 1))
                         }
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(.red)
-                        .padding(.vertical, 6).padding(.horizontal, 10)
-                        .background(Color.red.opacity(0.1))
-                        .border(Color.red.opacity(0.4), width: 1)
-                    }
-                    
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        showFileManager.toggle()
-                    }) {
-                        Image(systemName: "terminal.fill").font(.title3).foregroundColor(.red).padding(.leading, 10)
+                        
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            // FIXED: Reverted targeting back to the system notification trigger ID
+                            NotificationCenter.default.post(name: .darkOSToggleFileManager, object: nil)
+                        }) {
+                            Image(systemName: "folder.badge.gearshape")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Color.white.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
                     }
                 }
-                .padding(.horizontal, 20).padding(.vertical, 12)
-                .background(Color.black.opacity(0.9))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.thinMaterial.opacity(0.4))
+                .border(Color.white.opacity(0.1), width: 0.5)
+                .padding([.horizontal, .top], 10)
                 
-                // USER PROGRAM DECK CONTEXT INDEX
+                // --- MAIN DESKTOP SHORTCUT GRID LAYER ---
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 95, maximum: 110))], spacing: 25) {
-                        if fs.desktopShortcuts.isEmpty {
-                            Text("DESKTOP SECURE LAYER EMPTY.\nLAUNCH START_MGR TO PIN APPLICATION NODES.")
-                                .font(.system(size: 9, design: .monospaced))
-                                .foregroundColor(.red.opacity(0.2))
-                                .multilineTextAlignment(.center)
-                                .padding(.top, 40)
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            ForEach(fs.desktopShortcuts, id: \.self) { appURL in
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    pm.launchProcess(from: appURL)
-                                }) {
-                                    VStack(spacing: 8) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 12).fill(Color.black)
-                                                .frame(width: 60, height: 60)
-                                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.3), lineWidth: 1.5))
-                                            
-                                            Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
-                                                             (appURL.lastPathComponent == "Browser" ? "globe" :
-                                                             (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" :
-                                                             (appURL.lastPathComponent == "Task_Manager" ? "gauge.with.needle.fill" : "bolt.shield.fill"))))
-                                            .font(.title3).foregroundColor(.red)
-                                        }
-                                        Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
-                                            .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(.white).lineLimit(1)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 85, maximum: 100))], spacing: 25) {
+                        // Standard hardcoded application entries to mimic built-in shortcuts
+                        let builtInApps = ["Browser", "File_Safe", "File_Manager", "Task_Manager"]
+                        
+                        ForEach(builtInApps, id: \.self) { appName in
+                            let virtualURL = fs.rootDirectory.appendingPathComponent(appName)
+                            Button(action: {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                pm.launchProcess(from: virtualURL)
+                            }) {
+                                VStack(spacing: 6) {
+                                    ZStack {
+                                        // Win7 style reflective backdrop
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .top, endPoint: .bottom))
+                                            .frame(width: 52, height: 52)
+                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                                            .shadow(color: .black.opacity(0.3), radius: 3)
+                                        
+                                        Image(systemName: appName == "File_Safe" ? "lock.shield.fill" :
+                                                         (appName == "Browser" ? "globe" :
+                                                         (appName == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
+                                        .font(.title2)
+                                        .foregroundColor(appName == "File_Safe" ? .green : .red)
                                     }
+                                    
+                                    Text(appName.replacingOccurrences(of: "_", with: " ").uppercased())
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .shadow(color: .black, radius: 4)
+                                        .lineLimit(1)
                                 }
-                                .contextMenu {
-                                    Button(role: .destructive, action: { fs.removeDesktopShortcut(url: appURL) }) {
-                                        Label("Unpin from Desktop", systemImage: "trash")
+                            }
+                        }
+                        
+                        // Custom deployed files on user's workspace layer
+                        ForEach(fs.desktopShortcuts, id: \.self) { appURL in
+                            Button(action: {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                pm.launchProcess(from: appURL)
+                            }) {
+                                VStack(spacing: 6) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(LinearGradient(colors: [.red.opacity(0.2), .clear], startPoint: .top, endPoint: .bottom))
+                                            .frame(width: 52, height: 52)
+                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.3), lineWidth: 0.8))
+                                        
+                                        Image(systemName: "bolt.shield.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.red)
                                     }
-                                    if !fs.dockShortcuts.contains(appURL) {
-                                        Button(action: { fs.addDockShortcut(url: appURL) }) {
-                                            Label("Pin to Core Dock", systemImage: "pin.fill")
-                                        }
-                                    }
+                                    Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .shadow(color: .black, radius: 4)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .contextMenu {
+                                Button(role: .destructive, action: { fs.removeDesktopShortcut(url: appURL) }) {
+                                    Label("Unpin Asset", systemImage: "trash")
                                 }
                             }
                         }
                     }
-                    .padding(.top, 25).padding(.horizontal, 20)
+                    .padding(.top, 30)
+                    .padding(.horizontal, 20)
                 }
                 
                 Spacer()
                 
-                // BOTTOM DOCK SHORTCUT LAYOUT STRIP
-                // --- NEW WIN7 AERO TASKBAR BAR LAYOUT DECK ---
+                // --- ICONIC GLASS TASKBAR ---
                 HStack(spacing: 12) {
-                    // Round Start Orb Button
+                    // Start Orb Button (Classic Win7 Style Circle layout)
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         showStartMenu.toggle()
@@ -170,27 +212,27 @@ struct ContentView: View {
                             Circle()
                                 .fill(
                                     RadialGradient(
-                                        colors: [.red, Color(red: 0.3, green: 0, blue: 0)],
+                                        colors: [.red, Color(red: 0.4, green: 0, blue: 0), .black],
                                         center: .center,
-                                        startRadius: 2,
+                                        startRadius: 0,
                                         endRadius: 22
                                     )
                                 )
-                                .frame(width: 42, height: 42)
-                                .shadow(color: .red.opacity(0.6), radius: showStartMenu ? 8 : 3)
+                                .frame(width: 44, height: 44)
+                                .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 1.2))
+                                .shadow(color: .red.opacity(showStartMenu ? 0.9 : 0.4), radius: 6)
                             
                             Image(systemName: "command")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                         }
                     }
-                    .padding(.leading, 6)
                     
                     Rectangle()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 1, height: 28)
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 1, height: 26)
                     
-                    // Quick Launch Shortcut Icons Layout Panel
+                    // Quick Launch pinning strip
                     HStack(spacing: 8) {
                         ForEach(fs.dockShortcuts, id: \.self) { shortcutURL in
                             Button(action: {
@@ -199,22 +241,20 @@ struct ContentView: View {
                             }) {
                                 Image(systemName: shortcutURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
                                                  (shortcutURL.lastPathComponent == "Browser" ? "globe" :
-                                                 (shortcutURL.lastPathComponent == "File_Manager" ? "terminal.fill" :
-                                                 (shortcutURL.lastPathComponent == "Task_Manager" ? "gauge.with.needle.fill" : "bolt.shield.fill"))))
-                                    .font(.system(size: 14))
+                                                 (shortcutURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
+                                    .font(.system(size: 15))
                                     .foregroundColor(.white)
                                     .frame(width: 36, height: 36)
-                                    // Shiny backdrop hover effect
                                     .background(LinearGradient(colors: [.white.opacity(0.15), .clear], startPoint: .top, endPoint: .bottom))
                                     .cornerRadius(4)
-                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.25), lineWidth: 0.8))
                             }
                         }
                     }
                     
                     Spacer()
                     
-                    // Open Active Window Tab Rows
+                    // Active Window running state pills
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(pm.runningProcesses) { process in
@@ -223,75 +263,72 @@ struct ContentView: View {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     pm.activeProcessID = process.id
                                 }) {
-                                    Text(process.name)
-                                        .font(.system(size: 11, weight: isActive ? .bold : .regular, design: .rounded))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 8)
-                                        // Active apps look highlighted and lit up in the taskbar stack
-                                        .background(isActive ? Color.red.opacity(0.4) : Color.white.opacity(0.06))
-                                        .cornerRadius(4)
-                                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(isActive ? Color.red : Color.white.opacity(0.15), lineWidth: 1))
+                                    HStack(spacing: 6) {
+                                        Circle()
+                                            .fill(isActive ? Color.green : Color.red)
+                                            .frame(width: 6, height: 6)
+                                        Text(process.name)
+                                            .font(.system(size: 11, weight: isActive ? .black : .regular, design: .rounded))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(isActive ? Color.white.opacity(0.15) : Color.black.opacity(0.2))
+                                    .cornerRadius(4)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(isActive ? Color.white.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1))
                                 }
                             }
                         }
                     }
                 }
                 .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                // Gives the bottom ribbon dock a distinct sleek background blend border layer
-                .background(.ultraThinMaterial)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.2)), alignment: .top)
-                .padding(8).background(Color.black.opacity(0.95))
-                .overlay(Rectangle().frame(height: 1).foregroundColor(.red.opacity(0.3)), alignment: .top)
+                .padding(.horizontal, 12)
+                .background(.ultraThinMaterial.opacity(0.95))
+                .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.25)), alignment: .top)
             }
             
-            // MULTITASKING APPLICATION WINDOW RENDER CORES
-            // Locate where you loop through running processes inside ContentView.swift:
+            // --- FULL AERO APPLICATION MULTI-WINDOW COMPILER ENGINE ---
             ForEach(pm.runningProcesses) { process in
                 ZStack {
-                    Color.black.opacity(0.3).ignoresSafeArea() // Gives a translucent reveal behind windows
+                    Color.black.opacity(0.15).ignoresSafeArea() // Translucent system layer backdrop reveal
                     
                     VStack(spacing: 0) {
-                        // --- NEW AERO GLOSS WINDOW TITLEBAR ---
+                        // Title bar core element
                         HStack {
-                            Image(systemName: process.name == "BROWSER" ? "globe" : "cpu.fill")
+                            Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_SAFE" ? "lock.shield.fill" : "cpu.fill"))
                                 .foregroundColor(.white)
                                 .shadow(color: .red, radius: 2)
                             
-                            Text(process.name)
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                            Text(process.name.replacingOccurrences(of: "_", with: " "))
+                                .font(.system(size: 12, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
-                                // Windows 7 style text shadow aura
                                 .shadow(color: .black, radius: 3)
                             
                             Spacer()
                             
-                            // Classic Windows 7 rounded button cluster
-                            HStack(spacing: 6) {
-                                // Minimize
+                            // Classic Windows action window matrix
+                            HStack(spacing: 8) {
                                 Button(action: {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     pm.activeProcessID = nil
                                 }) {
                                     Text("—")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .frame(width: 26, height: 18)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 28, height: 20)
                                         .background(Color.white.opacity(0.15))
                                         .cornerRadius(3)
                                 }
                                 
-                                // Close / Terminate Button (Glows brighter bright red on hover/tap)
                                 Button(action: {
                                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                                     pm.terminateProcess(id: process.id)
                                 }) {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 9, weight: .black))
+                                        .font(.system(size: 10, weight: .black))
                                         .foregroundColor(.white)
-                                        .frame(width: 36, height: 18)
-                                        .background(Color.red.opacity(0.8))
+                                        .frame(width: 38, height: 20)
+                                        .background(Color.red.opacity(0.85))
                                         .cornerRadius(3)
                                         .shadow(color: .red, radius: 4)
                                 }
@@ -299,10 +336,10 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        // Adds the frosted glass look exclusively onto the titlebar frame
-                        .background(.thinMaterial.opacity(0.7))
+                        .background(Color.white.opacity(0.08))
+                        .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.15)), alignment: .bottom)
                         
-                        // Sub-window core runtime view
+                        // Internal app viewport content container
                         Group {
                             if process.name == "BROWSER" {
                                 BrowserView(isPresented: Binding(
@@ -318,168 +355,161 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.top, 20) // Margins to simulate desktop padding borders
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 60)
-                    // Inject the modifier here to turn the entire canvas envelope into an Aero-frame!
-                    .aeroGlassStyle(tint: .red)
+                    .padding(.top, 25)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 70)
+                    .aeroGlassStyle(tint: .red) // Inject frosted layout modifier template globally
                 }
                 .opacity(pm.activeProcessID == process.id ? 1.0 : 0.0)
                 .allowsHitTesting(pm.activeProcessID == process.id)
-                .animation(.easeOut(duration: 0.15), value: pm.activeProcessID)
+                .animation(.easeOut(duration: 0.18), value: pm.activeProcessID)
             }
             
-            // SYSTEM TASK MANAGER PANEL OVERLAY
-            if showTaskManager {
-                ZStack {
-                    Color.black.opacity(0.85).ignoresSafeArea()
-                    VStack(spacing: 0) {
-                        HStack {
-                            Text("⚙️ DARKOS KERNEL TASK MANAGER")
-                                .font(.system(size: 12, weight: .black, design: .monospaced)).foregroundColor(.red)
-                            Spacer()
-                            Button("MINIMIZE") { showTaskManager = false }
-                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.white)
-                        }
-                        .padding().background(Color.red.opacity(0.15))
-                        
-                        HStack {
-                            Text("PROCESS STRING")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.red.opacity(0.5))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            
-                            Text("VIRT_RAM")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.red.opacity(0.5))
-                                .frame(width: 80, alignment: .center)
-                            
-                            Text("ACTION")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.red.opacity(0.5))
-                                .frame(width: 90, alignment: .trailing)
-                        }
-                        .padding(.horizontal, 16).padding(.top, 15).padding(.bottom, 8)
-                        
-                        Rectangle().fill(Color.red.opacity(0.3)).frame(height: 1).padding(.horizontal, 16)
-                        
-                        if pm.runningProcesses.isEmpty {
-                            Text("NO THREAD CONCURRENCY DETECTED.")
-                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.4))
-                                .padding()
-                        } else {
-                            ScrollView {
-                                VStack(spacing: 6) {
-                                    ForEach(pm.runningProcesses) { process in
-                                        HStack(alignment: .center) {
-                                            Text(process.name)
-                                                .font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(.white)
-                                                .frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                                            
-                                            Text("\(String(format: "%.1f", process.ramUsage)) MB")
-                                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.green)
-                                                .frame(width: 80, alignment: .center)
-                                            
-                                            Button(action: {
-                                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                                pm.terminateProcess(id: process.id)
-                                            }) {
-                                                Text("KILL_PROC")
-                                                    .font(.system(size: 10, weight: .black, design: .monospaced)).foregroundColor(.black)
-                                                    .padding(.horizontal, 10).padding(.vertical, 6)
-                                                    .background(Color.red).cornerRadius(2)
-                                            }
-                                            .frame(width: 90, alignment: .trailing)
-                                        }
-                                        .padding(.vertical, 10).padding(.horizontal, 12)
-                                        .background(Color.white.opacity(0.02))
-                                        .border(Color.red.opacity(0.1), width: 1)
-                                    }
-                                }
-                                .padding(.horizontal, 16).padding(.top, 8)
-                            }
-                        }
-                        Spacer()
-                    }
-                    .frame(width: 380, height: 460)
-                    .background(Color(white: 0.04)).border(Color.red, width: 2)
-                    .shadow(color: .red.opacity(0.3), radius: 20)
-                }
-            }
-            
-            // THE START MENU APP REPOSITORY GRID
+            // --- THE START MENU APPS PANEL OVERLAY ---
             if showStartMenu {
                 VStack {
                     Spacer()
                     HStack {
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("🔴 SYSTEM APPLICATIONS")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                            Text("🔴 PROGRAMS REGISTER INDEX")
+                                .font(.system(size: 11, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)
-                                .background(Color.red.opacity(0.6))
+                                .background(Color.red.opacity(0.75))
                             
                             ScrollView {
                                 VStack(spacing: 2) {
                                     ForEach(fs.installedApps, id: \.self) { appURL in
                                         if appURL.lastPathComponent != "Browser.html" {
-                                            HStack {
-                                                Button(action: {
-                                                    pm.launchProcess(from: appURL)
-                                                    showStartMenu = false
-                                                }) {
-                                                    HStack(spacing: 10) {
-                                                        Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
-                                                                         (appURL.lastPathComponent == "Browser" ? "globe" :
-                                                                         (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" :
-                                                                         (appURL.lastPathComponent == "Task_Manager" ? "gauge.with.needle.fill" : "terminal"))))
-                                                        .foregroundColor(.red)
-                                                        
-                                                        Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
-                                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                                            .foregroundColor(.white)
-                                                    }
+                                            Button(action: {
+                                                pm.launchProcess(from: appURL)
+                                                showStartMenu = false
+                                            }) {
+                                                HStack(spacing: 12) {
+                                                    Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
+                                                                     (appURL.lastPathComponent == "Browser" ? "globe" :
+                                                                     (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
+                                                    .foregroundColor(.red)
+                                                    .frame(width: 18)
+                                                    
+                                                    Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
+                                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                        .foregroundColor(.white)
+                                                    Spacer()
                                                 }
-                                                Spacer()
+                                                .padding(.vertical, 12)
+                                                .padding(.horizontal, 14)
+                                                .background(Color.white.opacity(0.04))
+                                                .cornerRadius(4)
                                             }
-                                            .padding(.vertical, 10)
-                                            .padding(.horizontal, 14)
-                                            .background(Color.black.opacity(0.2))
                                         }
                                     }
                                 }
+                                .padding(8)
                             }
-                            .frame(height: 260)
+                            .frame(height: 250)
+                            .background(Color.black.opacity(0.4))
                         }
-                        .frame(width: 290)
-                        // Apply our beautiful new Aero frosted effect here!
+                        .frame(width: 280)
                         .aeroGlassStyle(tint: .black)
-                        .padding(.leading, 10)
-                        .padding(.bottom, 68) // Perfectly aligns right above the new Taskbar ring height
-                        
+                        .padding(.leading, 12)
+                        .padding(.bottom, 68)
                         Spacer()
                     }
                 }
                 .background(Color.clear.onTapGesture { showStartMenu = false })
             }
-            
             if showFileManager {
-                FileManagerView(isPresented: $showFileManager)
-                    .transition(.move(edge: .bottom))
-                    .zIndex(10)
+                            FileManagerView(isPresented: $showFileManager)
+                                .transition(.opacity)
+                                .zIndex(99)
+                        }
+                        
+                        // --- FLOATING AERO TASK MANAGER ---
+                        if showTaskManager {
+                            ZStack {
+                                Color.black.opacity(0.4).ignoresSafeArea() // Dims the background slightly
+                                
+                                VStack(spacing: 0) {
+                                    // Task Manager Title Bar
+                                    HStack {
+                                        Image(systemName: "gauge.with.needle.fill").foregroundColor(.white)
+                                        Text("Task Manager")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black, radius: 2)
+                                        Spacer()
+                                        Button(action: { showTaskManager = false }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 10, weight: .black))
+                                                .foregroundColor(.white)
+                                                .frame(width: 36, height: 20)
+                                                .background(Color.red.opacity(0.85))
+                                                .cornerRadius(3)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.08))
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.15)), alignment: .bottom)
+                                    
+                                    // Task Manager List Core
+                                    VStack(spacing: 0) {
+                                        HStack {
+                                            Text("PROCESS").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.red.opacity(0.8)).frame(maxWidth: .infinity, alignment: .leading)
+                                            Text("VIRT_RAM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.red.opacity(0.8)).frame(width: 80, alignment: .center)
+                                            Text("ACTION").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.red.opacity(0.8)).frame(width: 90, alignment: .trailing)
+                                        }
+                                        .padding(.horizontal, 16).padding(.vertical, 10)
+                                        .background(Color.black.opacity(0.3))
+                                        
+                                        if pm.runningProcesses.isEmpty {
+                                            Text("NO CONCURRENT THREADS DETECTED.")
+                                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.gray)
+                                                .padding()
+                                        } else {
+                                            ScrollView {
+                                                VStack(spacing: 6) {
+                                                    ForEach(pm.runningProcesses) { process in
+                                                        HStack {
+                                                            Text(process.name).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(.white).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                                                            Text("\(String(format: "%.1f", process.ramUsage)) MB").font(.system(size: 11, design: .monospaced)).foregroundColor(.white).frame(width: 80, alignment: .center)
+                                                            Button(action: {
+                                                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                                                pm.terminateProcess(id: process.id)
+                                                            }) {
+                                                                Text("KILL").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundColor(.black).padding(.horizontal, 12).padding(.vertical, 6).background(Color.red).cornerRadius(3)
+                                                            }
+                                                            .frame(width: 90, alignment: .trailing)
+                                                        }
+                                                        .padding(.vertical, 8).padding(.horizontal, 12)
+                                                        .background(Color.white.opacity(0.04))
+                                                        .cornerRadius(4)
+                                                    }
+                                                }
+                                                .padding(8)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                    .background(Color.black.opacity(0.5))
+                                }
+                                .frame(width: 360, height: 420)
+                                .aeroGlassStyle(tint: .red) // Boom. Frosted glass panel.
+                            }
+                            .zIndex(100)
+                        }
+                } // <--- THIS IS THE END OF YOUR MAIN ZSTACK
+                .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleFileManager)) { _ in
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showFileManager.toggle()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleTaskManager)) { _ in
+                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    showTaskManager.toggle()
+                }
+                .alert(installAlertMessage, isPresented: $showInstallAlert) {
+                    Button("ACKNOWLEDGE", role: .cancel) { }
+                }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleFileManager)) { _ in
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            showFileManager.toggle()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleTaskManager)) { _ in
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-            showTaskManager.toggle()
-        }
-        .alert(installAlertMessage, isPresented: $showInstallAlert) {
-            Button("ACKNOWLEDGE", role: .cancel) { }
-        }
-    }
-}

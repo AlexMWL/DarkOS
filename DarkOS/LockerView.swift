@@ -28,7 +28,7 @@ struct LockerView: View {
     @State private var clipboardIsCutOperation = false
     
     @State private var showFileImporter = false
-    @State private var selectedSafeFile: URL? = nil // Presentation routing target URL
+    @State private var selectedSafeFile: URL? = nil
     
     var body: some View {
         NavigationStack {
@@ -42,21 +42,36 @@ struct LockerView: View {
                 }
             }
             .padding()
-            .animation(.default, value: isUnlocked)
+            .background(Color.black.ignoresSafeArea()) // Keep it deep locked black
+            .animation(.easeInOut, value: isUnlocked)
             .onAppear {
                 if isUnlocked { refreshFileList() }
             }
         }
     }
     
-    // MARK: - Setup UI
+    // MARK: - SETUP PIN CODE CONTROL UI
     var setupScreen: some View {
-        VStack(spacing: 20) {
-            Text("Create Your Safe PIN").font(.title2).bold()
-            SecureField("Enter 4-Digit PIN", text: $inputPIN)
-                .textFieldStyle(.roundedBorder).keyboardType(.numberPad).multilineTextAlignment(.center)
+        VStack(spacing: 25) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.green)
+                .shadow(color: .green.opacity(0.5), radius: 6)
             
-            Button("Set PIN") {
+            Text("Initialize BitLocker Crypt Sector")
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundColor(.white)
+            
+            SecureField("Setup 4-Digit Passkey", text: $inputPIN)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .padding(12)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(6)
+                .frame(width: 220)
+            
+            Button(action: {
                 if inputPIN.count >= 4 {
                     if FileSafeManager.savePIN(inputPIN) {
                         pinExists = true
@@ -64,49 +79,79 @@ struct LockerView: View {
                         errorMessage = ""
                     }
                 } else {
-                    errorMessage = "PIN must be at least 4 digits."
+                    errorMessage = "Crypt parameters require at least 4 numbers."
                 }
+            }) {
+                Text("MOUNT SECURE SYSTEM")
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 20)
+                    .background(Color.green)
+                    .foregroundColor(.black)
+                    .cornerRadius(4)
             }
-            .buttonStyle(.borderedProminent)
-            Text(errorMessage).foregroundColor(.red)
+            Text(errorMessage).font(.caption).foregroundColor(.red)
         }
     }
     
-    // MARK: - Lock UI
+    // MARK: - VERIFY VAULT PIN CONTROL UI
     var lockScreen: some View {
-        VStack(spacing: 20) {
-            Text("File_Safe is Locked").font(.title2).bold()
-            SecureField("Enter PIN", text: $inputPIN)
-                .textFieldStyle(.roundedBorder).keyboardType(.numberPad).multilineTextAlignment(.center)
+        VStack(spacing: 25) {
+            Image(systemName: "shield.keys.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.green)
             
-            Button("Unlock") {
+            Text("Crypt Sector Access Restrained")
+                .font(.system(size: 15, weight: .black, design: .rounded))
+                .foregroundColor(.white)
+            
+            SecureField("Enter Secure Node PIN", text: $inputPIN)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .padding(12)
+                .background(Color.white.opacity(0.06))
+                .cornerRadius(6)
+                .frame(width: 220)
+            
+            Button(action: {
                 if FileSafeManager.verifyPIN(inputPIN) {
                     isUnlocked = true
                     errorMessage = ""
                     refreshFileList()
                 } else {
-                    errorMessage = "Wrong PIN. Try again, dude."
+                    errorMessage = "Security mismatch verification fault code, dude."
                 }
                 inputPIN = ""
+            }) {
+                Text("DECRYPT DRIVE PORT")
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 24)
+                    .background(Color.green)
+                    .foregroundColor(.black)
+                    .cornerRadius(4)
             }
-            .buttonStyle(.borderedProminent)
-            Text(errorMessage).foregroundColor(.red)
+            Text(errorMessage).font(.caption).foregroundColor(.red)
         }
     }
     
-    // MARK: - Secret Locker Mainframe View
+    // MARK: - SECURE MATRIX RECORD FILES DIRECTORY
     var secretLockerScreen: some View {
         VStack(spacing: 15) {
-            Text(viewSafeTrashMode ? "🗑️ Vault Recycle Bin" : "🔓 DarkOS File_Safe Vault")
-                .font(.title2).bold()
-                .foregroundColor(viewSafeTrashMode ? .orange : .green)
+            HStack {
+                Text(viewSafeTrashMode ? "🔐 Isolated Safe Trash Buffer" : "🛡️ BitLocker // Virtual Private Safe")
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundColor(viewSafeTrashMode ? .orange : .green)
+                Spacer()
+            }
             
             HStack {
                 if !viewSafeTrashMode && FileSafeManager.currentSafeDirectory != FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] {
                     Button(action: { FileSafeManager.navigateSafeBack(); refreshFileList() }) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "chevron.left")
-                            Text("BACK")
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.square.fill")
+                            Text("UP DIR")
                         }
                         .font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.green)
                     }
@@ -121,34 +166,38 @@ struct LockerView: View {
                     Button(action: { showNewFolderAlert = true }) {
                         Image(systemName: "folder.badge.plus").foregroundColor(.green)
                     }
-                    .padding(.trailing, 8)
                     
                     if safeClipboard != nil {
-                        Button(action: { executeSafePaste() }) {
-                            Text("PASTE").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.yellow)
-                        }
-                        .padding(.trailing, 8)
+                        Button("PASTE") { executeSafePaste() }
+                            .font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(.yellow)
                     }
                 }
                 
                 Button(action: { viewSafeTrashMode.toggle(); refreshFileList() }) {
-                    Text(viewSafeTrashMode ? "VAULT DRIVES" : "SECURE TRASH")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    Text(viewSafeTrashMode ? "SAFE SECURE" : "VAULT TRASH")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(viewSafeTrashMode ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
                         .foregroundColor(viewSafeTrashMode ? .green : .orange)
+                        .cornerRadius(3)
                 }
             }
-            .padding(.horizontal, 4).padding(.vertical, 6)
-            .background(Color.white.opacity(0.02))
+            .padding(8)
+            .background(Color.white.opacity(0.04))
+            .cornerRadius(4)
             
             if !viewSafeTrashMode {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Create New Secret Note").font(.caption).foregroundColor(.gray)
-                    TextField("Filename (e.g., passkeys.txt)", text: $newFileName)
-                        .textFieldStyle(.roundedBorder).autocapitalization(.none)
-                    TextField("Secret Content...", text: $newFileContent).textFieldStyle(.roundedBorder)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Crypt File Generation Node").font(.caption).foregroundColor(.gray)
+                    
+                    TextField("Secure Label Target Name (e.g., wallet.txt)", text: $newFileName)
+                        .textFieldStyle(.plain).padding(8).background(Color.black).foregroundColor(.white).cornerRadius(4).font(.system(size: 12, design: .monospaced))
+                    
+                    TextField("Raw payload binary context...", text: $newFileContent)
+                        .textFieldStyle(.plain).padding(8).background(Color.black).foregroundColor(.white).cornerRadius(4).font(.system(size: 12, design: .monospaced))
                     
                     HStack {
-                        Button("Lock File into Safe") {
+                        Button("COMMIT TO VAULT") {
                             guard !newFileName.isEmpty && !newFileContent.isEmpty else { return }
                             if FileSafeManager.saveTextFile(filename: newFileName, content: newFileContent) {
                                 newFileName = ""
@@ -156,15 +205,16 @@ struct LockerView: View {
                                 refreshFileList()
                             }
                         }
-                        .buttonStyle(.borderedProminent).tint(.green)
+                        .font(.system(size: 11, weight: .bold)).tint(.green).buttonStyle(.borderedProminent)
                         
                         Button(action: { showFileImporter = true }) {
-                            Label("Import iOS File", systemImage: "square.and.arrow.down")
+                            Label("Import File Frame", systemImage: "square.and.arrow.down")
+                                .font(.system(size: 11))
                         }
                         .buttonStyle(.bordered)
                     }
                 }
-                .padding().background(Color.white.opacity(0.05)).cornerRadius(10)
+                .padding().background(Color.white.opacity(0.04)).cornerRadius(6)
                 .fileImporter(
                     isPresented: $showFileImporter,
                     allowedContentTypes: [.item],
@@ -175,7 +225,6 @@ struct LockerView: View {
                         guard let selectedURL = urls.first else { return }
                         if selectedURL.startAccessingSecurityScopedResource() {
                             defer { selectedURL.stopAccessingSecurityScopedResource() }
-                            
                             if let fileData = try? Data(contentsOf: selectedURL) {
                                 let targetURL = FileSafeManager.currentSafeDirectory.appendingPathComponent(selectedURL.lastPathComponent)
                                 try? fileData.write(to: targetURL, options: .atomic)
@@ -183,25 +232,25 @@ struct LockerView: View {
                             }
                         }
                     case .failure(let error):
-                        print("Import error: \(error.localizedDescription)")
+                        print("Vault error code mapping exception: \(error.localizedDescription)")
                     }
                 }
             }
             
             List {
                 if savedFiles.isEmpty {
-                    Text("NO SECURE SECTOR RECORDS DETECTED.")
+                    Text("NO SECURE DESCRIPTOR BLOCKS INITIALIZED IN SECTOR.")
                         .font(.system(size: 11, design: .monospaced)).foregroundColor(.gray)
-                        .listRowBackground(Color.black).padding()
+                        .listRowBackground(Color.black)
                 } else {
                     ForEach(savedFiles, id: \.self) { file in
                         let isDir = checkIsSafeDirectory(url: file)
                         
                         HStack {
-                            Image(systemName: isDir ? "folder.fill" : "doc.text.fill")
+                            Image(systemName: isDir ? "folder.fill" : "lock.doc.fill")
                                 .foregroundColor(viewSafeTrashMode ? .orange : (isDir ? .yellow : .green))
                             Text(file.lastPathComponent.uppercased())
-                                .font(.system(size: 13, design: .monospaced)).foregroundColor(.white)
+                                .font(.system(size: 12, design: .monospaced)).foregroundColor(.white)
                             Spacer()
                         }
                         .listRowBackground(Color.black)
@@ -218,10 +267,10 @@ struct LockerView: View {
                         .contextMenu {
                             if viewSafeTrashMode {
                                 Button(action: { FileSafeManager.restoreFromSafeTrash(fileURL: file); refreshFileList() }) {
-                                    Label("Restore to Vault Base", systemImage: "arrow.uturn.backward.circle.fill")
+                                    Label("Restore Asset", systemImage: "arrow.uturn.backward.circle.fill")
                                 }
                                 Button(role: .destructive, action: { try? FileManager.default.removeItem(at: file); refreshFileList() }) {
-                                    Label("Permanently Destroy", systemImage: "trash.slash.fill")
+                                    Label("Purge Binary", systemImage: "trash.slash.fill")
                                 }
                             } else {
                                 Button(action: {
@@ -229,22 +278,22 @@ struct LockerView: View {
                                     renameInputText = file.deletingPathExtension().lastPathComponent
                                     showSafeRenameAlert = true
                                 }) {
-                                    Label("Rename Vault Asset", systemImage: "pencil")
+                                    Label("Rename Token", systemImage: "pencil")
                                 }
                                 Button(action: { safeClipboard = file; clipboardIsCutOperation = false }) {
-                                    Label("Copy Secured File", systemImage: "doc.on.doc.fill")
+                                    Label("Copy", systemImage: "doc.on.doc.fill")
                                 }
                                 Button(action: { safeClipboard = file; clipboardIsCutOperation = true }) {
-                                    Label("Cut Secured File", systemImage: "scissors")
+                                    Label("Cut", systemImage: "scissors")
                                 }
                                 Button(action: { FileSafeManager.moveSafeItemToTrash(fileURL: file); refreshFileList() }) {
-                                    Label("Move to Secure Trash", systemImage: "trash.fill")
+                                    Label("Drop into Safe Trash", systemImage: "trash.fill")
                                 }
                                 if !isDir {
                                     Button(action: {
                                         _ = FileSafeManager.exportToInternalPath(fileURL: file)
                                     }) {
-                                        Label("Export to C_Drive Workspace", systemImage: "square.and.arrow.up.fill")
+                                        Label("Export out to Workspace", systemImage: "square.and.arrow.up.fill")
                                     }
                                 }
                             }
@@ -255,14 +304,16 @@ struct LockerView: View {
             .listStyle(.plain)
             
             HStack {
-                Button("Lock Safe") { isUnlocked = false }.buttonStyle(.bordered)
+                Button("SECURE SYSTEM") { isUnlocked = false }.font(.system(size: 11)).buttonStyle(.bordered)
                 Spacer()
-                Button("Nuke Safe (Reset)") {
+                Button("RESET SYSTEM SECTOR") {
                     if FileSafeManager.deletePIN() {
                         pinExists = false
                         isUnlocked = false
                     }
-                }.foregroundColor(.red)
+                }
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.red)
             }
         }
         .alert("ALLOCATE VAULT DIRECTORY", isPresented: $showNewFolderAlert) {
@@ -277,8 +328,7 @@ struct LockerView: View {
             Button("CANCEL", role: .cancel) { folderNameInput = "" }
         }
         .alert("RENAME VAULT ASSET", isPresented: $showSafeRenameAlert) {
-            TextField("New Sector Name", text: $renameInputText)
-                .autocapitalization(.none)
+            TextField("New Sector Name", text: $renameInputText).autocapitalization(.none)
             Button("MODIFY") {
                 if let target = renameTargetURL, !renameInputText.isEmpty {
                     FileSafeManager.renameSafeFile(fileURL: target, to: renameInputText)
@@ -308,16 +358,15 @@ struct LockerView: View {
     }
     
     private func getSafePathDisplay() -> String {
-        if viewSafeTrashMode { return "VAULT://ISOLATED_CLUSTER/.SAFETRASH" }
+        if viewSafeTrashMode { return "VAULT:\\SystemIsolated\\.SafeTrash" }
         let docPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
         let subPath = FileSafeManager.currentSafeDirectory.path.replacingOccurrences(of: docPath, with: "")
-        return "VAULT://SECURE_NODE" + subPath.uppercased()
+        return "S:\\BitLocker\\SecureVault" + subPath.replacingOccurrences(of: "/", with: "\\").uppercased()
     }
     
     private func executeSafePaste() {
         guard let source = safeClipboard else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        
         if clipboardIsCutOperation {
             FileSafeManager.moveSafeFile(fileURL: source, to: FileSafeManager.currentSafeDirectory)
             safeClipboard = nil
@@ -328,6 +377,7 @@ struct LockerView: View {
     }
 }
 
+// MARK: - DETAILED FILE VIEW OVERLAY
 struct FileDetailView: View {
     let fileURL: URL
     @State private var rawData: Data? = nil
