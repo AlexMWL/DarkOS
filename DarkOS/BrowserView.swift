@@ -349,26 +349,74 @@ struct BrowserView: View {
 }
 
 // MARK: - REUSABLE WEB COMPONENTS CORE STATE WRAPPERS
+// In BrowserView.swift
 
 @Observable
 class WebViewStore {
-    var webView: WKWebView = WKWebView()
+    var webView: WKWebView
     var canGoBack = false
     var canGoForward = false
     
     init() {
-        webView.backgroundColor = .black
-        webView.isOpaque = false
-        webView.configuration.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        // 1. Configure the WebView settings
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         
-        // FIXED: Makes the Browser core completely responsive to your drag gestures
+        // 2. Define the anti-hijack/responsive injection script
+        let antiHijackScript = """
+            // 1. Force inline playback attributes
+            function enforceInline() {
+                document.querySelectorAll('video').forEach(v => {
+                    v.setAttribute('playsinline', '');
+                    v.setAttribute('webkit-playsinline', '');
+                });
+            }
+            enforceInline();
+            const observer = new MutationObserver(enforceInline);
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            // 2. Kill-switch: Mock the fullscreen API to do nothing
+            window.Element.prototype.requestFullscreen = function() { 
+                return Promise.resolve(); 
+            };
+            window.Element.prototype.webkitRequestFullscreen = function() { 
+                return Promise.resolve(); 
+            };
+            
+            // 3. CSS to force sizing and hide overlays
+            var style = document.createElement('style');
+            style.innerHTML = `
+                body, html { width: 100% !important; height: 100% !important; overflow: hidden !important; }
+                video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
+                .fullscreen-button, .tiktok-player-fullscreen, [role="button"][aria-label*="Full"] { display: none !important; }
+            `;
+            document.head.appendChild(style);
+
+            // 4. Block events
+            document.addEventListener('fullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
+            document.addEventListener('webkitfullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
+        """
+        
+        let script = WKUserScript(source: antiHijackScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        config.userContentController.addUserScript(script)
+
+        // 3. Initialize WebView with the configuration
+        self.webView = WKWebView(frame: .zero, configuration: config)
+        
+        // 4. Set Desktop User-Agent to bypass mobile app forcing
+        let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        webView.customUserAgent = desktopUserAgent
+        
+        webView.backgroundColor = UIColor.black
+        webView.isOpaque = false
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     }
     
     func load(url: URL) {
         if url.absoluteString.hasPrefix("file://") {
-            // FIXED: Standardize paths passed across the sandbox frame parameters
             let standardizedURL = url.resolvingSymlinksInPath()
             let standardizedReadAccess = FileSystemManager.shared.rootDirectory.resolvingSymlinksInPath()
             webView.loadFileURL(standardizedURL, allowingReadAccessTo: standardizedReadAccess)
