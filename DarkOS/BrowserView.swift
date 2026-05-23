@@ -359,8 +359,11 @@ class WebViewStore {
     init() {
         webView.backgroundColor = .black
         webView.isOpaque = false
-        // Ensure standard file access privileges are initialized globally on the target frame configuration layer
         webView.configuration.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        
+        // FIXED: Makes the Browser core completely responsive to your drag gestures
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     }
     
     func load(url: URL) {

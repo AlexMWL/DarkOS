@@ -157,6 +157,9 @@ struct OSWebViewRawWrapper: UIViewRepresentable {
     let webView: WKWebView
     
     func makeUIView(context: Context) -> WKWebView {
+        // FIXED: Forces the Web Engine to scale dynamically with the window size!
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         return webView
     }
     
@@ -168,6 +171,9 @@ struct OSWebViewWrapper: UIViewRepresentable {
     let webView: WKWebView
     
     func makeUIView(context: Context) -> WKWebView {
+        // FIXED: Forces the Web Engine to scale dynamically with the window size!
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         return webView
     }
     

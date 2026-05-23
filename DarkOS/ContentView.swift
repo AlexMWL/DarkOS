@@ -14,6 +14,13 @@ struct ContentView: View {
     @State private var showTaskManager = false
     @State private var showSettings = false
     
+    // Window Drag & Resize Memory Banks
+    @State private var windowOffsets: [UUID: CGSize] = [:]
+    @State private var dragOffsets: [UUID: CGSize] = [:]
+    @State private var windowSizes: [UUID: CGSize] = [:]
+    @State private var dragSizes: [UUID: CGSize] = [:]
+    @State private var minimizedWindows: Set<UUID> = []
+    
     // Glitch Framework States
     @State private var isGlitching = false
     @State private var glitchYOffset: CGFloat = 0.0
@@ -256,31 +263,37 @@ struct ContentView: View {
                     Spacer()
                     
                     // Active Window running state pills
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(pm.runningProcesses) { process in
-                                let isActive = pm.activeProcessID == process.id
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    pm.activeProcessID = process.id
-                                }) {
-                                    HStack(spacing: 6) {
-                                        Circle()
-                                            .fill(isActive ? Color.green : Color.red)
-                                            .frame(width: 6, height: 6)
-                                        Text(process.name)
-                                            .font(.system(size: 11, weight: isActive ? .black : .regular, design: .rounded))
-                                            .foregroundColor(.white)
-                                    }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(isActive ? Color.white.opacity(0.15) : Color.black.opacity(0.2))
-                                    .cornerRadius(4)
-                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(isActive ? Color.white.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1))
-                                }
-                            }
-                        }
-                    }
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 6) {
+                                                ForEach(pm.runningProcesses) { process in
+                                                    let isActive = pm.activeProcessID == process.id
+                                                    let isMinimized = minimizedWindows.contains(process.id) // Check if hidden
+                                                    
+                                                    Button(action: {
+                                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                                        // If it's minimized, bring it back to the screen!
+                                                        if isMinimized { minimizedWindows.remove(process.id) }
+                                                        pm.activeProcessID = process.id
+                                                    }) {
+                                                        HStack(spacing: 6) {
+                                                            Circle()
+                                                                // Grey dot for minimized, Green for active, Red for background
+                                                                .fill(isActive ? Color.green : (isMinimized ? Color.gray : Color.red))
+                                                                .frame(width: 6, height: 6)
+                                                            Text(process.name)
+                                                                .font(.system(size: 11, weight: isActive ? .black : .regular, design: .rounded))
+                                                                // Dims the text if it is minimized
+                                                                .foregroundColor(isMinimized ? .white.opacity(0.4) : .white)
+                                                        }
+                                                        .padding(.horizontal, 14)
+                                                        .padding(.vertical, 8)
+                                                        .background(isActive ? Color.white.opacity(0.15) : Color.black.opacity(0.2))
+                                                        .cornerRadius(4)
+                                                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(isActive ? Color.white.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1))
+                                                    }
+                                                }
+                                            }
+                                        }
                 }
                 .padding(.vertical, 6)
                 .padding(.horizontal, 12)
@@ -289,84 +302,130 @@ struct ContentView: View {
             }
             
             // --- FULL AERO APPLICATION MULTI-WINDOW COMPILER ENGINE ---
-            ForEach(pm.runningProcesses) { process in
-                ZStack {
-                    Color.black.opacity(0.15).ignoresSafeArea() // Translucent system layer backdrop reveal
-                    
-                    VStack(spacing: 0) {
-                        // Title bar core element
-                        HStack {
-                            Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_SAFE" ? "lock.shield.fill" : "cpu.fill"))
-                                .foregroundColor(.white)
-                                .shadow(color: .red, radius: 2)
+                        ForEach(pm.runningProcesses) { process in
+                            let isActive = pm.activeProcessID == process.id
+                            let isMinimized = minimizedWindows.contains(process.id)
                             
-                            Text(process.name.replacingOccurrences(of: "_", with: " "))
-                                .font(.system(size: 12, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
-                                .shadow(color: .black, radius: 3)
+                            let baseOffset = windowOffsets[process.id] ?? .zero
+                            let activeDragOffset = dragOffsets[process.id] ?? .zero
+                            let currentOffset = CGSize(width: baseOffset.width + activeDragOffset.width, height: baseOffset.height + activeDragOffset.height)
                             
-                            Spacer()
-                            
-                            // Classic Windows action window matrix
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    pm.activeProcessID = nil
-                                }) {
-                                    Text("—")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 28, height: 20)
-                                        .background(Color.white.opacity(0.15))
-                                        .cornerRadius(3)
+                            let baseSize = windowSizes[process.id] ?? CGSize(width: 360, height: 480)
+                            let activeDragSize = dragSizes[process.id] ?? .zero
+                            let currentSize = CGSize(width: max(250, baseSize.width + activeDragSize.width), height: max(200, baseSize.height + activeDragSize.height))
+
+                            ZStack(alignment: .bottomTrailing) {
+                                VStack(spacing: 0) {
+                                    // Title Bar
+                                    HStack {
+                                        Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_SAFE" ? "lock.shield.fill" : "cpu.fill"))
+                                            .foregroundColor(.white)
+                                            .shadow(color: .red, radius: 2)
+                                        
+                                        Text(process.name.replacingOccurrences(of: "_", with: " "))
+                                            .font(.system(size: 12, weight: .black, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black, radius: 3)
+                                        
+                                        Spacer()
+                                        
+                                        HStack(spacing: 8) {
+                                            // FIXED MINIMIZE BUTTON
+                                            Button(action: {
+                                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                                minimizedWindows.insert(process.id)
+                                                if pm.activeProcessID == process.id { pm.activeProcessID = nil }
+                                            }) {
+                                                Text("—").font(.system(size: 11, weight: .bold)).foregroundColor(.white).frame(width: 28, height: 20).background(Color.white.opacity(0.15)).cornerRadius(3)
+                                            }
+                                            
+                                            Button(action: {
+                                                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                                pm.terminateProcess(id: process.id)
+                                                minimizedWindows.remove(process.id) // Clean up memory bank
+                                            }) {
+                                                Image(systemName: "xmark").font(.system(size: 10, weight: .black)).foregroundColor(.white).frame(width: 38, height: 20).background(Color.red.opacity(0.85)).cornerRadius(3).shadow(color: .red, radius: 4)
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 8)
+                                    .background(isActive ? Color.white.opacity(0.12) : Color.white.opacity(0.04))
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.15)), alignment: .bottom)
+                                    .contentShape(Rectangle()) // Makes the whole bar grabbable
+                                    .gesture(
+                                        DragGesture()
+                                            .onChanged { value in
+                                                if pm.activeProcessID != process.id { pm.activeProcessID = process.id }
+                                                dragOffsets[process.id] = value.translation
+                                            }
+                                            .onEnded { value in
+                                                let current = windowOffsets[process.id] ?? .zero
+                                                windowOffsets[process.id] = CGSize(width: current.width + value.translation.width, height: current.height + value.translation.height)
+                                                dragOffsets[process.id] = .zero
+                                            }
+                                    )
+                                    
+                                    Group {
+                                        if process.name == "BROWSER" {
+                                            BrowserView(isPresented: Binding(
+                                                get: { pm.activeProcessID == process.id },
+                                                set: { if !$0 { pm.activeProcessID = nil } }
+                                            ))
+                                        } else if process.name == "FILE_SAFE" {
+                                            LockerView().background(Color.black)
+                                        } else {
+                                            OSWebViewWrapper(webView: process.webView)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .clipped()
+                                    .allowsHitTesting(isActive)
                                 }
+                                .frame(width: currentSize.width, height: currentSize.height)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .aeroGlassStyle(tint: isActive ? .red : .black)
                                 
-                                Button(action: {
-                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                    pm.terminateProcess(id: process.id)
-                                }) {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 10, weight: .black))
-                                        .foregroundColor(.white)
-                                        .frame(width: 38, height: 20)
-                                        .background(Color.red.opacity(0.85))
-                                        .cornerRadius(3)
-                                        .shadow(color: .red, radius: 4)
+                                // FIXED RESIZE HANDLE
+                                // Swapped to an arrow to make it obvious, and boosted the touch padding!
+                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    .font(.system(size: 12, weight: .black))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .padding(14)
+                                    .background(Color.white.opacity(0.001)) // Invisible giant touch target
+                                    .gesture(
+                                        DragGesture()
+                                            .onChanged { value in
+                                                if pm.activeProcessID != process.id { pm.activeProcessID = process.id }
+                                                dragSizes[process.id] = value.translation
+                                            }
+                                            .onEnded { value in
+                                                let current = windowSizes[process.id] ?? CGSize(width: 360, height: 480)
+                                                windowSizes[process.id] = CGSize(
+                                                    width: max(250, current.width + value.translation.width),
+                                                    height: max(200, current.height + value.translation.height)
+                                                )
+                                                dragSizes[process.id] = .zero
+                                            }
+                                    )
+                            }
+                            .offset(currentOffset)
+                            .zIndex(isActive ? 100 : Double(pm.runningProcesses.firstIndex(where: { $0.id == process.id }) ?? 0))
+                            
+                            // MINIMIZE LOGIC APPLIED HERE
+                            .opacity(isMinimized ? 0.0 : 1.0)
+                            .scaleEffect(isMinimized ? 0.8 : 1.0)
+                            .allowsHitTesting(!isMinimized)
+                            
+                            .onTapGesture {
+                                if !isActive {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    pm.activeProcessID = process.id
                                 }
                             }
+                            // FIXED LAG: The animation is now ONLY tied to minimizing the window, not activating/dragging it!
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isMinimized)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.08))
-                        .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.15)), alignment: .bottom)
-                        
-                        // Internal app viewport content container
-                        Group {
-                            if process.name == "BROWSER" {
-                                BrowserView(isPresented: Binding(
-                                    get: { pm.activeProcessID == process.id },
-                                    set: { if !$0 { pm.activeProcessID = nil } }
-                                ))
-                            } else if process.name == "FILE_SAFE" {
-                                LockerView().background(Color.black)
-                            } else {
-                                OSWebViewWrapper(webView: process.webView)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.top, 25)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 70)
-                    .aeroGlassStyle(tint: .red) // Inject frosted layout modifier template globally
-                }
-                .opacity(pm.activeProcessID == process.id ? 1.0 : 0.0)
-                .allowsHitTesting(pm.activeProcessID == process.id)
-                .animation(.easeOut(duration: 0.18), value: pm.activeProcessID)
-            }
             
-            // --- THE START MENU APPS PANEL OVERLAY ---
             // --- THE START MENU APPS PANEL OVERLAY ---
                         if showStartMenu {
                             ZStack {
