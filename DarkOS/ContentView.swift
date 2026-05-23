@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var showStartMenu = false
     @State private var showFileManager = false
     @State private var showTaskManager = false
+    @State private var showSettings = false
     
     // Glitch Framework States
     @State private var isGlitching = false
@@ -109,8 +110,8 @@ struct ContentView: View {
                         
                         Button(action: {
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            // FIXED: Reverted targeting back to the system notification trigger ID
-                            NotificationCenter.default.post(name: .darkOSToggleFileManager, object: nil)
+                            // RE-WIRED to trigger our new settings panel!
+                            showSettings.toggle()
                         }) {
                             Image(systemName: "folder.badge.gearshape")
                                 .font(.title3)
@@ -131,7 +132,7 @@ struct ContentView: View {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 85, maximum: 100))], spacing: 25) {
                         // Standard hardcoded application entries to mimic built-in shortcuts
-                        let builtInApps = ["Browser", "File_Safe", "File_Manager", "Task_Manager"]
+                        let builtInApps = ["Browser", "File_Safe", "File_Manager"]
                         
                         ForEach(builtInApps, id: \.self) { appName in
                             let virtualURL = fs.rootDirectory.appendingPathComponent(appName)
@@ -366,60 +367,71 @@ struct ContentView: View {
             }
             
             // --- THE START MENU APPS PANEL OVERLAY ---
-            if showStartMenu {
-                VStack {
-                    Spacer()
-                    HStack {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("🔴 PROGRAMS REGISTER INDEX")
-                                .font(.system(size: 11, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(Color.red.opacity(0.75))
-                            
-                            ScrollView {
-                                VStack(spacing: 2) {
-                                    ForEach(fs.installedApps, id: \.self) { appURL in
-                                        if appURL.lastPathComponent != "Browser.html" {
-                                            Button(action: {
-                                                pm.launchProcess(from: appURL)
-                                                showStartMenu = false
-                                            }) {
-                                                HStack(spacing: 12) {
-                                                    Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
-                                                                     (appURL.lastPathComponent == "Browser" ? "globe" :
-                                                                     (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
-                                                    .foregroundColor(.red)
-                                                    .frame(width: 18)
-                                                    
-                                                    Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
-                                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                                        .foregroundColor(.white)
-                                                    Spacer()
+            // --- THE START MENU APPS PANEL OVERLAY ---
+                        if showStartMenu {
+                            ZStack {
+                                // 1. The invisible "wall" that catches your taps outside the menu!
+                                Color.black.opacity(0.001)
+                                    .ignoresSafeArea()
+                                    .onTapGesture {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                        showStartMenu = false
+                                    }
+                                
+                                // 2. The actual Start Menu UI
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 0) {
+                                            Text("🔴 PROGRAMS REGISTER INDEX")
+                                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(12)
+                                                .background(Color.red.opacity(0.75))
+                                            
+                                            ScrollView {
+                                                VStack(spacing: 2) {
+                                                    ForEach(fs.installedApps, id: \.self) { appURL in
+                                                        if appURL.lastPathComponent != "Browser.html" {
+                                                            Button(action: {
+                                                                pm.launchProcess(from: appURL)
+                                                                showStartMenu = false
+                                                            }) {
+                                                                HStack(spacing: 12) {
+                                                                    Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
+                                                                                     (appURL.lastPathComponent == "Browser" ? "globe" :
+                                                                                     (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
+                                                                    .foregroundColor(.red)
+                                                                    .frame(width: 18)
+                                                                    
+                                                                    Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
+                                                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                                        .foregroundColor(.white)
+                                                                    Spacer()
+                                                                }
+                                                                .padding(.vertical, 12)
+                                                                .padding(.horizontal, 14)
+                                                                .background(Color.white.opacity(0.04))
+                                                                .cornerRadius(4)
+                                                            }
+                                                        }
+                                                    }
                                                 }
-                                                .padding(.vertical, 12)
-                                                .padding(.horizontal, 14)
-                                                .background(Color.white.opacity(0.04))
-                                                .cornerRadius(4)
+                                                .padding(8)
                                             }
+                                            .frame(height: 250)
+                                            .background(Color.black.opacity(0.4))
                                         }
+                                        .frame(width: 280)
+                                        .aeroGlassStyle(tint: .black)
+                                        .padding(.leading, 12)
+                                        .padding(.bottom, 68)
+                                        Spacer()
                                     }
                                 }
-                                .padding(8)
                             }
-                            .frame(height: 250)
-                            .background(Color.black.opacity(0.4))
                         }
-                        .frame(width: 280)
-                        .aeroGlassStyle(tint: .black)
-                        .padding(.leading, 12)
-                        .padding(.bottom, 68)
-                        Spacer()
-                    }
-                }
-                .background(Color.clear.onTapGesture { showStartMenu = false })
-            }
             if showFileManager {
                             FileManagerView(isPresented: $showFileManager)
                                 .transition(.opacity)
@@ -498,6 +510,53 @@ struct ContentView: View {
                                 .aeroGlassStyle(tint: .red) // Boom. Frosted glass panel.
                             }
                             .zIndex(100)
+                        }
+            if showSettings {
+                            ZStack {
+                                Color.black.opacity(0.4).ignoresSafeArea() // Dims the background
+                                
+                                VStack(spacing: 0) {
+                                    // Settings Title Bar
+                                    HStack {
+                                        Image(systemName: "gearshape.fill").foregroundColor(.white)
+                                        Text("System Settings")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black, radius: 2)
+                                        Spacer()
+                                        Button(action: { showSettings = false }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 10, weight: .black))
+                                                .foregroundColor(.white)
+                                                .frame(width: 36, height: 20)
+                                                .background(Color.red.opacity(0.85))
+                                                .cornerRadius(3)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.08))
+                                    .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.15)), alignment: .bottom)
+                                    
+                                    // Settings Content Placeholder
+                                    VStack {
+                                        Spacer()
+                                        Image(systemName: "wrench.and.screwdriver.fill")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(.white.opacity(0.3))
+                                            .padding(.bottom, 8)
+                                        
+                                        Text("Placeholder for settings.")
+                                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.6))
+                                        Spacer()
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(Color.black.opacity(0.5))
+                                }
+                                .frame(width: 320, height: 380)
+                                .aeroGlassStyle(tint: .red) // Keeps that premium glass aesthetic
+                            }
+                            .zIndex(101) // Ensures it floats over everything else
                         }
                 } // <--- THIS IS THE END OF YOUR MAIN ZSTACK
                 .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleFileManager)) { _ in
