@@ -168,12 +168,22 @@ class FileSystemManager: ObservableObject {
     }
     
     func moveToTrash(fileURL: URL) {
-        let destinationURL = trashDirectory.appendingPathComponent(fileURL.lastPathComponent)
-        try? FileManager.default.removeItem(at: destinationURL)
-        try? FileManager.default.moveItem(at: fileURL, to: destinationURL)
-        refreshInstalledApps()
-        objectWillChange.send()
-    }
+            let fileName = fileURL.deletingPathExtension().lastPathComponent
+            let ext = fileURL.pathExtension
+            var destinationURL = trashDirectory.appendingPathComponent(fileURL.lastPathComponent)
+            
+            // Loop to create unique names like "file (1).txt" if it already exists
+            var counter = 1
+            while FileManager.default.fileExists(atPath: destinationURL.path) {
+                let newName = ext.isEmpty ? "\(fileName) (\(counter))" : "\(fileName) (\(counter)).\(ext)"
+                destinationURL = trashDirectory.appendingPathComponent(newName)
+                counter += 1
+            }
+            
+            try? FileManager.default.moveItem(at: fileURL, to: destinationURL)
+            refreshInstalledApps()
+            objectWillChange.send()
+        }
     
     func restoreFromTrash(fileURL: URL) {
         let destinationURL = rootDirectory.appendingPathComponent(fileURL.lastPathComponent)

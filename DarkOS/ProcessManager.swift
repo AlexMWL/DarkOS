@@ -85,10 +85,6 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
                       ((rawName == "FILE_MANAGER") ? "FILE_MANAGER" :
                       ((rawName == "TASK_MANAGER") ? "TASK_MANAGER" : rawName)))
         
-        if appName == "FILE_MANAGER" {
-            NotificationCenter.default.post(name: .darkOSToggleFileManager, object: nil)
-            return
-        }
         if appName == "TASK_MANAGER" {
             NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
             return
