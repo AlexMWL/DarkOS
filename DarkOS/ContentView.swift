@@ -124,11 +124,11 @@ struct ContentView: View {
     private var topHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("DARKOS MULTI-KERNEL // DESKTOP")
+                Text("DarkOS by Lex // Desktop")
                     .font(.system(size: 11, weight: .black, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: .red, radius: 2)
-                Text("PID_POOL: \(pm.runningProcesses.count) Active Processes  |  RAM: \(String(format: "%.1f", pm.currentRamUsage)) MB")
+                Text("PID_Pool: \(pm.runningProcesses.count) Active Processes  |  RAM Used: \(String(format: "%.1f", pm.currentRamUsage)) MB")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -139,7 +139,7 @@ struct ContentView: View {
                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                     NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
                 }) {
-                    Label("Task Manager", systemImage: "gauge.with.needle.fill")
+                    Label("Task Butcher", systemImage: "gauge.with.needle.fill")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .padding(.vertical, 6)
@@ -380,7 +380,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HStack {
                     Image(systemName: "gauge.with.needle.fill").foregroundColor(.white)
-                    Text("Task Manager")
+                    Text("Task Butcher")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: .black, radius: 2)
