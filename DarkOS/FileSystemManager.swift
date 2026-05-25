@@ -6,7 +6,7 @@ class FileSystemManager: ObservableObject {
     
     let rootDirectory: URL
     let trashDirectory: URL
-    let appsDirectory: URL // Dedicated sub-cluster for launchable apps
+    let appsDirectory: URL
     
     @Published var currentDirectory: URL
     @Published var installedApps: [URL] = []
@@ -172,7 +172,6 @@ class FileSystemManager: ObservableObject {
             let ext = fileURL.pathExtension
             var destinationURL = trashDirectory.appendingPathComponent(fileURL.lastPathComponent)
             
-            // Loop to create unique names like "file (1).txt" if it already exists
             var counter = 1
             while FileManager.default.fileExists(atPath: destinationURL.path) {
                 let newName = ext.isEmpty ? "\(fileName) (\(counter))" : "\(fileName) (\(counter)).\(ext)"
@@ -272,5 +271,11 @@ class FileSystemManager: ObservableObject {
         let next = forwardStack.removeLast()
         backStack.append(currentDirectory)
         currentDirectory = next
+    }
+}
+
+extension URL {
+    var isDarkOSDirectory: Bool {
+        return (try? resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
     }
 }

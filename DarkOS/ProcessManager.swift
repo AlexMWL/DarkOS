@@ -72,126 +72,83 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
     }
     
     private func saveStorageJSON(_ jsonString: String, for appName: String) {
-        let fileURL = getStorageURL(for: appName)
-        try? jsonString.write(to: fileURL, atomically: true, encoding: .utf8)
-    }
+            let fileURL = getStorageURL(for: appName)
+            try? jsonString.write(to: fileURL, atomically: true, encoding: .utf8)
+        }
     
-    func launchProcess(from url: URL) {
-        let ext = url.pathExtension.lowercased()
-        let rawName = url.deletingPathExtension().lastPathComponent.uppercased()
-        
-        let appName = (rawName == "FILE_SAFE") ? "FILE_SAFE" :
-                      ((rawName == "BROWSER" || rawName == "BROWSER_APP") ? "BROWSER" :
-                      ((rawName == "FILE_MANAGER") ? "FILE_MANAGER" :
-                      ((rawName == "TASK_MANAGER") ? "TASK_MANAGER" : rawName)))
-        
-        if appName == "TASK_MANAGER" {
-            NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
-            return
-        }
-        
-        if let existing = runningProcesses.first(where: { $0.name == appName }) {
-            activeProcessID = existing.id
-            return
-        }
-        
-        // 1. Setup Configuration
-        let configuration = WKWebViewConfiguration()
-        configuration.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-        configuration.allowsInlineMediaPlayback = true
-        configuration.mediaTypesRequiringUserActionForPlayback = []
-        
-        // 2. Add Anti-Fullscreen & Responsive CSS Injection
-        let antiHijackScript = """
-            // A. Force inline playback on all current and future video elements
-            function enforceInline() {
-                document.querySelectorAll('video').forEach(v => {
-                    v.setAttribute('playsinline', '');
-                    v.setAttribute('webkit-playsinline', '');
-                });
-            }
-            enforceInline();
-            const observer = new MutationObserver(enforceInline);
-            observer.observe(document.body, { childList: true, subtree: true });
+        func launchProcess(from url: URL) {
+            let configuration = WKWebViewConfiguration.darkOSStandard
+            let ext = url.pathExtension.lowercased()
+            let rawName = url.deletingPathExtension().lastPathComponent.uppercased()
+            let appName = (ext == "html" || ext == "js" || url.absoluteString.contains("C_Drive")) ? rawName : "FILE_VIEWER"
 
-            // B. Monkey-patch Fullscreen API to prevent video hijack
-            window.Element.prototype.requestFullscreen = function() { return Promise.resolve(); };
-            window.Element.prototype.webkitRequestFullscreen = function() { return Promise.resolve(); };
-            
-            // C. CSS to force sizing, hide overlay buttons, and keep content inside the container
-            var style = document.createElement('style');
-            style.innerHTML = `
-                body, html { width: 100% !important; height: 100% !important; overflow: hidden !important; }
-                video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
-                .fullscreen-button, .tiktok-player-fullscreen, [role="button"][aria-label*="Full"] { display: none !important; }
-            `;
-            document.head.appendChild(style);
-
-            // D. Block bubbling events
-            document.addEventListener('fullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
-            document.addEventListener('webkitfullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
-        """
-
-        let script = WKUserScript(source: antiHijackScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-        configuration.userContentController.addUserScript(script)
-
-        // Configure Local Storage Bridge if needed
-        if appName != "BROWSER" && (ext == "html" || ext == "js" || url.absoluteString.contains("C_Drive")) {
-            let currentJSON = loadStorageJSON(for: appName)
-            let polyfillJS = """
-            (function() {
-                const storageData = \(currentJSON);
-                const appIdentifier = '\(appName)';
-                // ... (Polyfill logic omitted for brevity, keep your original block here) ...
-            })();
-            """
-            let userScript = WKUserScript(source: polyfillJS, injectionTime: .atDocumentStart, forMainFrameOnly: true)
-            configuration.userContentController.addUserScript(userScript)
-            configuration.userContentController.add(self, name: "darkOSStorageBridge")
-        }
-        
-        // 3. Initialize WebView
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        webView.customUserAgent = desktopUserAgent
-        webView.backgroundColor = UIColor.black
-        webView.isOpaque = false
-        
-        let standardizedURL = url.resolvingSymlinksInPath()
-        let standardizedReadAccess = FileSystemManager.shared.rootDirectory.resolvingSymlinksInPath()
-        
-        if appName != "BROWSER" {
-            if ext == "js" {
-                let scriptFileName = standardizedURL.lastPathComponent
-                let wrappedHTML = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                    <style>
-                        body { background-color: #000000; color: #ffffff; margin: 0; padding: 15px; overflow-x: hidden; }
-                    </style>
-                </head>
-                <body>
-                    <script src="\(scriptFileName)"></script>
-                </body>
-                </html>
+            if appName != "BROWSER" && (ext == "html" || ext == "js" || url.absoluteString.contains("C_Drive")) {
+                let currentJSON = loadStorageJSON(for: appName)
+                let polyfillJS = """
+                (function() {
+                    const storageData = \(currentJSON);
+                    const appIdentifier = '\(appName)';
+                    window.localStorage.getItem = function(key) { return storageData[key] || null; };
+                    window.localStorage.setItem = function(key, value) {
+                        storageData[key] = String(value);
+                        window.webkit.messageHandlers.darkOSStorageBridge.postMessage({ app: appIdentifier, action: 'sync', payload: JSON.stringify(storageData) });
+                    };
+                    window.localStorage.removeItem = function(key) {
+                        delete storageData[key];
+                        window.webkit.messageHandlers.darkOSStorageBridge.postMessage({ app: appIdentifier, action: 'sync', payload: JSON.stringify(storageData) });
+                    };
+                    window.localStorage.clear = function() {
+                        for (let key in storageData) delete storageData[key];
+                        window.webkit.messageHandlers.darkOSStorageBridge.postMessage({ app: appIdentifier, action: 'sync', payload: "{}" });
+                    };
+                })();
                 """
-                let runnerURL = FileSystemManager.shared.appsDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
-                try? wrappedHTML.write(to: runnerURL, atomically: true, encoding: .utf8)
-                webView.loadFileURL(runnerURL, allowingReadAccessTo: standardizedReadAccess)
-            } else {
-                webView.loadFileURL(standardizedURL, allowingReadAccessTo: standardizedReadAccess)
+                let userScript = WKUserScript(source: polyfillJS, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+                configuration.userContentController.addUserScript(userScript)
+                configuration.userContentController.add(self, name: "darkOSStorageBridge")
             }
+            
+            let webView = WKWebView(frame: .zero, configuration: configuration)
+            let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            webView.customUserAgent = desktopUserAgent
+            webView.backgroundColor = UIColor.black
+            webView.isOpaque = false
+            
+            let standardizedURL = url.resolvingSymlinksInPath()
+            let standardizedReadAccess = FileSystemManager.shared.rootDirectory.resolvingSymlinksInPath()
+            
+            if appName != "BROWSER" {
+                if ext == "js" {
+                    let scriptFileName = standardizedURL.lastPathComponent
+                    let wrappedHTML = """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                        <style>
+                            body { background-color: #000000; color: #ffffff; margin: 0; padding: 15px; overflow-x: hidden; }
+                        </style>
+                    </head>
+                    <body>
+                        <script src="\(scriptFileName)"></script>
+                    </body>
+                    </html>
+                    """
+                    let runnerURL = FileSystemManager.shared.appsDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
+                    try? wrappedHTML.write(to: runnerURL, atomically: true, encoding: .utf8)
+                    webView.loadFileURL(runnerURL, allowingReadAccessTo: standardizedReadAccess)
+                } else {
+                    webView.loadFileURL(standardizedURL, allowingReadAccessTo: standardizedReadAccess)
+                }
+            }
+            
+            let initialRam = (appName == "BROWSER") ? 34.8 : 18.2
+            let newProcess = OSProcess(appURL: standardizedURL, name: appName, webView: webView, ramUsage: initialRam)
+            
+            runningProcesses.append(newProcess)
+            activeProcessID = newProcess.id
         }
-        
-        let initialRam = (appName == "BROWSER") ? 34.8 : 18.2
-        let newProcess = OSProcess(appURL: standardizedURL, name: appName, webView: webView, ramUsage: initialRam)
-        
-        runningProcesses.append(newProcess)
-        activeProcessID = newProcess.id
-    }
     
     func terminateProcess(id: UUID) {
         if let process = runningProcesses.first(where: { $0.id == id }) {

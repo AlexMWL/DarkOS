@@ -53,7 +53,6 @@ class FileSafeManager {
             let ext = fileURL.pathExtension
             var dest = safeTrashDirectory.appendingPathComponent(fileURL.lastPathComponent)
             
-            // Same collision avoidance for the secure sector
             var counter = 1
             while FileManager.default.fileExists(atPath: dest.path) {
                 let newName = ext.isEmpty ? "\(fileName) (\(counter))" : "\(fileName) (\(counter)).\(ext)"

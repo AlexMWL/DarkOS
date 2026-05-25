@@ -25,15 +25,12 @@ class DarkOSSchemeHandler: NSObject, WKURLSchemeHandler {
             if let data = try? Data(contentsOf: fileURL) {
                 let mimeType = getMimeType(for: fileURL)
                 
-                // UPGRADED: Construct a proper HTTP header payload mapping
                 let headerFields = [
                     "Content-Type": "\(mimeType); charset=utf-8",
                     "Content-Length": String(data.count),
-                    "Access-Control-Allow-Origin": "*" // Allows flexible sub-resource loading
+                    "Access-Control-Allow-Origin": "*"
                 ]
                 
-                // Switching to HTTPURLResponse with a 200 status code guarantees
-                // that WKWebView will compile the HTML view layout instead of showing raw code text!
                 if let response = HTTPURLResponse(
                     url: url,
                     statusCode: 200,

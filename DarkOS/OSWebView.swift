@@ -10,24 +10,22 @@ struct OSBrowserContainerView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
-            // 1. Dashboard Controller
-            OSWebViewRawWrapper(webView: mainWebView)
+            
+            OSWebViewWrapper(webView: mainWebView)
                 .onAppear {
                     targetWebEngine.setupBridge(for: mainWebView)
                 }
             
-            // 2. Active Tab Sheet Canvas Render
             if targetWebEngine.showTargetContent, let activeWebView = targetWebEngine.getActiveWebView() {
-                OSWebViewRawWrapper(webView: activeWebView)
-                    .padding(.top, 80) // Expanded margin to fit the double-row (nav bar + tab bar) layout!
+                OSWebViewWrapper(webView: activeWebView)
+                    .padding(.top, 80)
                     .transition(.opacity)
-                    .id(targetWebEngine.activeTabIndex) // Forces SwiftUI layout refreshes on switch
+                    .id(targetWebEngine.activeTabIndex)
             }
         }
     }
 }
 
-// Model layout to help convert tab arrays into JSON packets for our Javascript engine
 struct JSTabModel: Encodable {
     let currentURL: String
     let isActive: Bool
@@ -40,7 +38,6 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
     @Published var showTargetContent = false
     @Published var activeTabIndex: Int = 0
     
-    // Array pool maintaining the sandboxed tab sessions
     private var tabWebViews: [WKWebView] = []
     private var mainUiWebView: WKWebView?
     
@@ -54,7 +51,6 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         mainUiWebView.configuration.userContentController.removeScriptMessageHandler(forName: "darkOSBridge")
         mainUiWebView.configuration.userContentController.add(self, name: "darkOSBridge")
         
-        // Spawn primary Tab 1 if empty
         if tabWebViews.isEmpty {
             createNewTab(withInitialURL: "https://www.bing.com")
         }
@@ -66,10 +62,7 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         newWebView.isOpaque = true
         newWebView.navigationDelegate = self
         
-        // --- UPDATED: Support loading both local file nodes and public web links ---
-        // --- SUPPORT LOADING BOTH LOCAL FILE NODES AND PUBLIC WEB LINKS ---
         if urlString.hasPrefix("file://"), let fileURL = URL(string: urlString) {
-            // FIXED: Force symlink alignment across separate engine tabs
             let standardizedURL = fileURL.resolvingSymlinksInPath()
             let standardizedReadAccess = FileSystemManager.shared.rootDirectory.resolvingSymlinksInPath()
             newWebView.loadFileURL(standardizedURL, allowingReadAccessTo: standardizedReadAccess)
@@ -84,7 +77,6 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         broadcastTabsToJS()
     }
     
-    // Serializes the local tabs state data and passes it straight across the frame bridge
     private func broadcastTabsToJS() {
         let models = tabWebViews.enumerated().map { (index, webView) in
             JSTabModel(currentURL: webView.url?.absoluteString ?? "https://www.bing.com", isActive: index == activeTabIndex)
@@ -93,7 +85,6 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         
         if let jsonData = try? JSONEncoder().encode(payload),
            let jsonString = String(data: jsonData, encoding: .utf8) {
-            // Escapes characters safely for execution inside the evaluating JavaScript string block
             let escapedJson = jsonString.replacingOccurrences(of: "'", with: "\\'")
             
             DispatchQueue.main.async {
@@ -102,12 +93,10 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         }
     }
     
-    // WKNavigationDelegate: Updates your tabs array strings dynamically as you browse links
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         broadcastTabsToJS()
     }
     
-    // Process Interceptor for JavaScript Actions
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "darkOSBridge",
               let body = message.body as? [String: Any],
@@ -119,12 +108,12 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
                 getActiveWebView()?.load(URLRequest(url: url))
             }
         case "createTab":
-            // Check if a specific target URL or file path was passed down in the data packet payload
+            
             if let customURLString = body["data"] as? String, !customURLString.isEmpty {
-                // Direct the tab engine to load your custom app file instead of the default homepage
+                
                 createNewTab(withInitialURL: customURLString)
             } else {
-                // Fallback normal behavior when hitting the '+' button manually
+                
                 createNewTab(withInitialURL: "https://www.bing.com")
             }
         case "selectTab":
@@ -134,7 +123,7 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
             }
         case "closeTab":
             if let indexStr = body["data"] as? String, let targetIndex = Int(indexStr), tabWebViews.indices.contains(targetIndex) {
-                // Safeguard: Do not delete the final remaining active tab context
+                
                 if tabWebViews.count > 1 {
                     tabWebViews.remove(at: targetIndex)
                     activeTabIndex = max(0, targetIndex - 1)
@@ -152,26 +141,12 @@ class TargetWebEngine: NSObject, ObservableObject, WKScriptMessageHandler, WKNav
         }
     }
 }
-// Satisfies the core multi-tab browser layout engine requirements
-struct OSWebViewRawWrapper: UIViewRepresentable {
-    let webView: WKWebView
-    
-    func makeUIView(context: Context) -> WKWebView {
-        // FIXED: Forces the Web Engine to scale dynamically with the window size!
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        return webView
-    }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
-}
 
-// Satisfies standard non-browser JavaScript app modules (like FILE_SAFE)
 struct OSWebViewWrapper: UIViewRepresentable {
     let webView: WKWebView
     
     func makeUIView(context: Context) -> WKWebView {
-        // FIXED: Forces the Web Engine to scale dynamically with the window size!
+        
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.scrollView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         return webView

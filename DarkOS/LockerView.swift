@@ -42,7 +42,7 @@ struct LockerView: View {
                 }
             }
             .padding()
-            .background(Color.black.ignoresSafeArea()) // Keep it deep locked black
+            .background(Color.black.ignoresSafeArea())
             .animation(.easeInOut, value: isUnlocked)
             .onAppear {
                 if isUnlocked { refreshFileList() }
@@ -50,7 +50,6 @@ struct LockerView: View {
         }
     }
     
-    // MARK: - SETUP PIN CODE CONTROL UI
     var setupScreen: some View {
         VStack(spacing: 25) {
             Image(systemName: "lock.shield.fill")
@@ -94,7 +93,6 @@ struct LockerView: View {
         }
     }
     
-    // MARK: - VERIFY VAULT PIN CONTROL UI
     var lockScreen: some View {
         VStack(spacing: 25) {
             Image(systemName: "shield.keys.fill")
@@ -136,7 +134,6 @@ struct LockerView: View {
         }
     }
     
-    // MARK: - SECURE MATRIX RECORD FILES DIRECTORY
     var secretLockerScreen: some View {
         VStack(spacing: 15) {
             HStack {
@@ -244,7 +241,7 @@ struct LockerView: View {
                         .listRowBackground(Color.black)
                 } else {
                     ForEach(savedFiles, id: \.self) { file in
-                        let isDir = checkIsSafeDirectory(url: file)
+                        let isDir = file.isDarkOSDirectory
                         
                         HStack {
                             Image(systemName: isDir ? "folder.fill" : "lock.doc.fill")
@@ -351,12 +348,6 @@ struct LockerView: View {
         savedFiles = viewSafeTrashMode ? FileSafeManager.listSafeTrashContents() : FileSafeManager.listCurrentSafeContents()
     }
     
-    private func checkIsSafeDirectory(url: URL) -> Bool {
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-        return isDir.boolValue
-    }
-    
     private func getSafePathDisplay() -> String {
         if viewSafeTrashMode { return "VAULT:\\SystemIsolated\\.SafeTrash" }
         let docPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
@@ -377,7 +368,6 @@ struct LockerView: View {
     }
 }
 
-// MARK: - DETAILED FILE VIEW OVERLAY
 struct FileDetailView: View {
     let fileURL: URL
     @State private var rawData: Data? = nil
@@ -450,7 +440,6 @@ struct FileDetailView: View {
     }
 }
 
-// MARK: - EXTENSION MATRIX FOR MODAL ROUTING CONFORMANCE
 extension URL: Identifiable {
     public var id: String { self.absoluteString }
 }

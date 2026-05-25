@@ -3,7 +3,7 @@ import AVKit
 
 struct InternalFileViewer: View {
     let fileURL: URL
-    var forceTextView: Bool = false // --- NEW: Param to force text mode
+    var forceTextView: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     
@@ -66,7 +66,7 @@ struct InternalFileViewer: View {
     }
     
     private func evaluateAssetType() {
-        // If we forced text mode from the popup window, bypass extension checks entirely
+        
         if forceTextView {
             isText = true
             if let content = try? String(contentsOf: fileURL, encoding: .utf8) {

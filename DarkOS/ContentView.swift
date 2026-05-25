@@ -19,6 +19,7 @@ struct ContentView: View {
     
     // Glitch Framework States
     @State private var isGlitching = false
+    private let ciContext = CIContext()
     @State private var glitchYOffset: CGFloat = 0.0
     private let glitchTimer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
     
@@ -29,7 +30,6 @@ struct ContentView: View {
     @State private var installAlertMessage = ""
     @State private var showInstallAlert = false
     
-    // MARK: - MAIN BODY RENDERING
     var body: some View {
             ZStack {
                 desktopBackground
@@ -37,12 +37,10 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     topHeader
                     
-                    // --- THIS IS THE FIX ---
                     GeometryReader { geo in
                         ZStack {
                             desktopGrid
                             
-                            // Moving the loop inside here fixes the scope error
                             ForEach(pm.runningProcesses) { process in
                                 WindowNode(process: process, pm: pm, minimizedWindows: $minimizedWindows, desktopSize: geo.size)
                             }
@@ -52,7 +50,6 @@ struct ContentView: View {
                     taskbar
                 }
                 
-                // Overlays sit on the absolute top layer
                 if showStartMenu { startMenuOverlay }
                 if showTaskManager { taskManagerOverlay }
                 if showSettings { settingsOverlay }
@@ -70,7 +67,6 @@ struct ContentView: View {
             }
         }
     
-    // MARK: - COMPONENT: DESKTOP BACKGROUND
     private var desktopBackground: some View {
         ZStack {
             LinearGradient(
@@ -93,9 +89,8 @@ struct ContentView: View {
                     .stroke(Color.red.opacity(0.04), lineWidth: 1)
                     
                     if isGlitching {
-                        let context = CIContext()
-                        if let outputImage = CIFilter.randomGenerator().outputImage?.cropped(to: CGRect(x: 0, y: 0, width: 300, height: 300)),
-                           let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+                                            if let outputImage = CIFilter.randomGenerator().outputImage?.cropped(to: CGRect(x: 0, y: 0, width: 300, height: 300)),
+                                               let cgImage = ciContext.createCGImage(outputImage, from: outputImage.extent) {
                             Image(uiImage: UIImage(cgImage: cgImage))
                                 .resizable()
                                 .renderingMode(.template)
@@ -120,7 +115,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - COMPONENT: TOP HEADER
     private var topHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
@@ -169,7 +163,6 @@ struct ContentView: View {
         .padding([.horizontal, .top], 10)
     }
     
-    // MARK: - COMPONENT: DESKTOP ICONS GRID
     private var desktopGrid: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 85, maximum: 100))], spacing: 25) {
@@ -240,7 +233,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - COMPONENT: TASKBAR
     private var taskbar: some View {
         HStack(spacing: 12) {
             Button(action: {
@@ -308,7 +300,6 @@ struct ContentView: View {
         .overlay(Rectangle().frame(height: 1).foregroundColor(.white.opacity(0.25)), alignment: .top)
     }
     
-    // MARK: - COMPONENT: START MENU OVERLAY
     private var startMenuOverlay: some View {
         ZStack {
             Color.black.opacity(0.001)
@@ -372,7 +363,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - COMPONENT: TASK MANAGER OVERLAY
     private var taskManagerOverlay: some View {
         ZStack {
             Color.black.opacity(0.4).ignoresSafeArea()
@@ -439,7 +429,6 @@ struct ContentView: View {
         .zIndex(100)
     }
     
-    // MARK: - COMPONENT: SETTINGS OVERLAY
     private var settingsOverlay: some View {
         ZStack {
             Color.black.opacity(0.4).ignoresSafeArea()
@@ -481,20 +470,18 @@ struct ContentView: View {
     }
 }
 
-// MARK: - ISOLATED DRAGGABLE WINDOW COMPONENT
-// MARK: - ISOLATED DRAGGABLE WINDOW COMPONENT
 struct WindowNode: View {
     let process: OSProcess
     @ObservedObject var pm: ProcessManager
     @Binding var minimizedWindows: Set<UUID>
-    let desktopSize: CGSize // Captures the exact safe area size!
+    let desktopSize: CGSize
     
     @State private var currentOffset: CGSize = .zero
     @State private var dragOffset: CGSize = .zero
-    @State private var currentSize: CGSize = CGSize(width: 360, height: 480)
-    @State private var dragSize: CGSize = .zero
     
-    // NEW: Controls maximize and our invisible anti-lag shield
+    @State private var baseScale: CGFloat = 1.0
+    @State private var dragScale: CGFloat = 0.0
+    
     @State private var isMaximized: Bool = false
     @State private var isInteracting: Bool = false
     
@@ -502,13 +489,20 @@ struct WindowNode: View {
         let isActive = pm.activeProcessID == process.id
         let isMinimized = minimizedWindows.contains(process.id)
         
-        // Dynamically override size and position if the window is maximized!
         let activeOffset = isMaximized ? .zero : CGSize(width: currentOffset.width + dragOffset.width, height: currentOffset.height + dragOffset.height)
-        let activeSize = isMaximized ? desktopSize : CGSize(width: max(250, currentSize.width + dragSize.width), height: max(200, currentSize.height + dragSize.height))
-
-        ZStack(alignment: .bottomTrailing) {
+        
+        let activeWidth = isMaximized ? desktopSize.width : 360
+        let activeHeight = isMaximized ? desktopSize.height : 480
+        
+        let activeScale = isMaximized ? 1.0 : max(0.4, baseScale + dragScale)
+        
+        let visualWidth = activeWidth * activeScale
+        let visualHeight = activeHeight * activeScale
+        
+        ZStack(alignment: .center) {
+            
             VStack(spacing: 0) {
-                // --- TITLE BAR ---
+                
                 HStack {
                     Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_SAFE" ? "lock.shield.fill" : (process.name == "FILE_MANAGER" ? "folder.fill" : "cpu.fill")))
                         .foregroundColor(.white)
@@ -521,9 +515,7 @@ struct WindowNode: View {
                     
                     Spacer()
                     
-                    // --- ACTION BUTTON MATRIX ---
                     HStack(spacing: 8) {
-                        // Minimize
                         Button(action: {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             minimizedWindows.insert(process.id)
@@ -532,7 +524,6 @@ struct WindowNode: View {
                             Text("—").font(.system(size: 11, weight: .bold)).foregroundColor(.white).frame(width: 26, height: 20).background(Color.white.opacity(0.15)).cornerRadius(3)
                         }
                         
-                        // NEW: Maximize / Restore
                         Button(action: {
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -547,7 +538,6 @@ struct WindowNode: View {
                                 .cornerRadius(3)
                         }
                         
-                        // Close
                         Button(action: {
                             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                             pm.terminateProcess(id: process.id)
@@ -564,19 +554,18 @@ struct WindowNode: View {
                 .gesture(
                     DragGesture()
                         .onChanged { value in
-                            isInteracting = true // Triggers the shield!
+                            isInteracting = true
                             if pm.activeProcessID != process.id { pm.activeProcessID = process.id }
-                            if isMaximized { isMaximized = false } // Auto-restore if dragged
+                            if isMaximized { isMaximized = false }
                             dragOffset = value.translation
                         }
                         .onEnded { value in
-                            isInteracting = false // Drops the shield
+                            isInteracting = false
                             currentOffset = CGSize(width: currentOffset.width + value.translation.width, height: currentOffset.height + value.translation.height)
                             dragOffset = .zero
                         }
                 )
                 
-                // --- APP CORE FRAME ---
                 Group {
                     if process.name == "BROWSER" {
                         BrowserView(isPresented: Binding(
@@ -596,37 +585,46 @@ struct WindowNode: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                // THE ANTI-LAG SHIELD: Blocks WebView gestures while dragging!
                 .overlay(Color.white.opacity(isInteracting ? 0.001 : 0))
                 .clipped()
                 .allowsHitTesting(isActive)
             }
-            .frame(width: activeSize.width, height: activeSize.height)
+            .frame(width: activeWidth, height: activeHeight)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .aeroGlassStyle(tint: isActive ? .red : .black)
+            .scaleEffect(activeScale)
             
-            // --- RESIZE HANDLE ---
             if !isMaximized {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 12, weight: .black))
-                    .foregroundColor(.white.opacity(0.6))
-                    .padding(14)
-                    .background(Color.white.opacity(0.001))
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                isInteracting = true // Triggers the shield!
-                                if pm.activeProcessID != process.id { pm.activeProcessID = process.id }
-                                dragSize = value.translation
-                            }
-                            .onEnded { value in
-                                isInteracting = false // Drops the shield
-                                currentSize = CGSize(width: max(250, currentSize.width + value.translation.width), height: max(200, currentSize.height + value.translation.height))
-                                dragSize = .zero
-                            }
-                    )
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 12, weight: .black))
+                            .foregroundColor(.white.opacity(0.6))
+                            .padding(14)
+                            .background(Color.white.opacity(0.001))
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        isInteracting = true
+                                        if pm.activeProcessID != process.id { pm.activeProcessID = process.id }
+                                        
+                                        let dragDistance = (value.translation.width * 0.6) + (value.translation.height * 0.8)
+                                        dragScale = dragDistance / 600.0
+                                    }
+                                    .onEnded { value in
+                                        isInteracting = false
+                                        let dragDistance = (value.translation.width * 0.6) + (value.translation.height * 0.8)
+                                        baseScale = max(0.4, baseScale + (dragDistance / 600.0))
+                                        dragScale = .zero
+                                    }
+                            )
+                    }
+                }
             }
         }
+        .frame(width: visualWidth, height: visualHeight)
         .offset(activeOffset)
         .zIndex(isActive ? 100 : Double(pm.runningProcesses.firstIndex(where: { $0.id == process.id }) ?? 0))
         .opacity(isMinimized ? 0.0 : 1.0)

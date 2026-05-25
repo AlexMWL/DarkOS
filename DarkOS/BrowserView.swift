@@ -8,7 +8,6 @@
 import SwiftUI
 import WebKit
 
-// MARK: - MODELS
 struct BrowserTab: Identifiable, Equatable {
     let id = UUID()
     var url: URL
@@ -25,26 +24,21 @@ struct Bookmark: Identifiable, Codable, Equatable {
     var urlString: String
 }
 
-// MARK: - MAIN BROWSER INSTANCE
 struct BrowserView: View {
     @Binding var isPresented: Bool
     
-    // Tab Management Matrix
     @State private var tabs: [BrowserTab] = [
         BrowserTab(url: URL(string: "https://www.google.com")!, title: "CORE_SEARCH")
     ]
     @State private var activeTabId: UUID?
     
-    // Navigation Input Control
     @State private var urlInputString = "https://www.google.com"
     
-    // Bookmark Persistence Core
     @State private var bookmarks: [Bookmark] = []
     @State private var showAddBookmarkAlert = false
     @State private var bookmarkNameInput = ""
     @State private var showBookmarksDrawer = false
     
-    // Target WebView Reference for Navigation Actions
     @State private var webViewStore = WebViewStore()
     
     init(isPresented: Binding<Bool>) {
@@ -63,7 +57,7 @@ struct BrowserView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // --- DYNAMIC TAB BAR SUBSYSTEM ---
+                
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach(tabs) { tab in
@@ -102,7 +96,6 @@ struct BrowserView: View {
                 }
                 .background(Color.white.opacity(0.01))
                 
-                // --- TERMINAL NAVIGATION & INJECTION STRIP ---
                 HStack(spacing: 12) {
                     HStack(spacing: 14) {
                         Button(action: { webViewStore.webView.goBack() }) {
@@ -163,7 +156,6 @@ struct BrowserView: View {
                     bookmarksListView
                 }
                 
-                // --- CORE WEBVIEW EMBED PIPELINE ---
                 if let activeTab = activeTab {
                     DarkOSWebViewRepresentable(url: activeTab.url, store: webViewStore) { updatedTitle, updatedURL in
                         updateActiveTabMetrics(title: updatedTitle, url: updatedURL)
@@ -179,7 +171,7 @@ struct BrowserView: View {
                 }
             }
         }
-        // --- NEW: LISTEN FOR INJECTED LOCAL FILES ---
+        
         .onReceive(NotificationCenter.default.publisher(for: .darkOSInjectModule)) { notification in
             if let localURL = notification.object as? URL {
                 injectLocalModuleTab(fileURL: localURL)
@@ -201,8 +193,6 @@ struct BrowserView: View {
             Button("CANCEL", role: .cancel) { bookmarkNameInput = "" }
         }
     }
-    
-    // MARK: - COMPONENT DRAWER VIEWS
     
     private var bookmarksListView: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -246,8 +236,6 @@ struct BrowserView: View {
         .padding(.vertical, 8)
         .background(Color.white.opacity(0.02))
     }
-    
-    // MARK: - BUSINESS COMPILATION LOGIC MATRICES
     
     private func injectLocalModuleTab(fileURL: URL) {
         let labelName = fileURL.deletingPathExtension().lastPathComponent.uppercased()
@@ -300,7 +288,7 @@ struct BrowserView: View {
         guard let activeId = activeTabId, let index = tabs.firstIndex(where: { $0.id == activeId }) else { return }
         if let url = url {
             tabs[index].url = url
-            // Only force input bar updates if we are NOT viewing an internal storage file:// module path
+            
             if !url.absoluteString.hasPrefix("file://") {
                 DispatchQueue.main.async {
                     self.urlInputString = url.absoluteString
@@ -308,14 +296,12 @@ struct BrowserView: View {
             }
         }
         if let title = title, !title.isEmpty {
-            // Keep the clean filename label intact for local files rather than changing it to an empty web title
+            
             if let currentUrl = activeTab?.url, !currentUrl.absoluteString.hasPrefix("file://") {
                 tabs[index].title = title
             }
         }
     }
-    
-    // MARK: - PERSISTENCE CONTROL CORES
     
     private func prepareAddBookmark() {
         bookmarkNameInput = activeTab?.title ?? "NODE_ANCHOR"
@@ -348,9 +334,6 @@ struct BrowserView: View {
     }
 }
 
-// MARK: - REUSABLE WEB COMPONENTS CORE STATE WRAPPERS
-// In BrowserView.swift
-
 @Observable
 class WebViewStore {
     var webView: WKWebView
@@ -358,13 +341,12 @@ class WebViewStore {
     var canGoForward = false
     
     init() {
-        // 1. Configure the WebView settings
+        
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         
-        // 2. Define the anti-hijack/responsive injection script
         let antiHijackScript = """
             // 1. Force inline playback attributes
             function enforceInline() {
@@ -401,11 +383,9 @@ class WebViewStore {
         
         let script = WKUserScript(source: antiHijackScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
-
-        // 3. Initialize WebView with the configuration
+        
         self.webView = WKWebView(frame: .zero, configuration: config)
         
-        // 4. Set Desktop User-Agent to bypass mobile app forcing
         let desktopUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         webView.customUserAgent = desktopUserAgent
         
@@ -439,7 +419,7 @@ struct DarkOSWebViewRepresentable: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Safe check preventing unnecessary reload cycles when shifting tab states
+        
         if uiView.url != url {
             store.load(url: url)
         }

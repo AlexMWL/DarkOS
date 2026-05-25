@@ -30,12 +30,16 @@ struct FileManagerView: View {
     @State private var showHTMLChoiceAlert = false
     @State private var htmlAlertFile: URL? = nil
     
+    private var currentListItems: [URL] {
+        viewTrashBinMode ? fs.listTrashContents() : fs.listCurrentDirectoryContents()
+    }
+    
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // --- SYSTEM WINDOW HEADER BAR ---
+                
                 HStack {
                     Image(systemName: "folder.fill").foregroundColor(.yellow)
                     Text(viewTrashBinMode ? "Recycle Bin subsystem" : "File Explorer // Network Storage")
@@ -55,7 +59,6 @@ struct FileManagerView: View {
                 .padding()
                 .background(Color.white.opacity(0.06))
                 
-                // --- WIN7 CORE TOOLBAR BAR NAVIGATION MATRIX ---
                 HStack(spacing: 12) {
                     if !viewTrashBinMode {
                         HStack(spacing: 6) {
@@ -81,7 +84,6 @@ struct FileManagerView: View {
                         }
                     }
                     
-                    // Glass Address Bar Display Row Panel
                     HStack {
                         Image(systemName: "desktopcomputer").font(.caption).foregroundColor(.gray)
                         Text(getCurrentPathDisplay())
@@ -113,7 +115,6 @@ struct FileManagerView: View {
                 .padding()
                 .background(Color.white.opacity(0.02))
                 
-                // --- COMPILER INJECTION CONSOLE AREA ---
                 if !viewTrashBinMode {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Over-The-Air System Compiler Workspace")
@@ -168,26 +169,22 @@ struct FileManagerView: View {
                     .background(Color.white.opacity(0.03))
                 }
                 
-                // --- SECTOR RECORD VIEW PANEL ROWS ---
                 List {
-                    let items = viewTrashBinMode ? fs.listTrashContents() : fs.listCurrentDirectoryContents()
-                    
-                    if items.isEmpty {
+                    if currentListItems.isEmpty {
                         Text("No data structures mapped inside this segment cluster.")
                             .font(.system(size: 12, design: .rounded)).foregroundColor(.gray)
                             .listRowBackground(Color.black)
                     } else {
-                        ForEach(items, id: \.self) { file in
-                            let isDir = checkIsDirectory(url: file)
-                            
+                        ForEach(currentListItems, id: \.self) { file in
                             HStack {
-                                Image(systemName: isDir ? "folder.fill" : fileIcon(for: file))
-                                    .foregroundColor(viewTrashBinMode ? .orange : (isDir ? .yellow : .red))
+                                
+                                Image(systemName: file.isDarkOSDirectory ? "folder.fill" : fileIcon(for: file))
+                                    .foregroundColor(viewTrashBinMode ? .orange : (file.isDarkOSDirectory ? .yellow : .red))
                                 Text(file.lastPathComponent.uppercased())
                                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                                     .foregroundColor(.white)
                                 Spacer()
-                                Text(isDir ? "File Folder" : "\(file.pathExtension.uppercased()) File")
+                                Text(file.isDarkOSDirectory ? "File Folder" : "\(file.pathExtension.uppercased()) File")
                                     .font(.system(size: 10, design: .rounded))
                                     .foregroundColor(.white.opacity(0.3))
                             }
@@ -196,7 +193,7 @@ struct FileManagerView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 if viewTrashBinMode { return }
-                                if isDir {
+                                if file.isDarkOSDirectory {
                                     fs.navigateIntoFolder(file)
                                 } else {
                                     routeFileSelection(file)
@@ -205,7 +202,7 @@ struct FileManagerView: View {
                             .contextMenu {
                                 FileContextMenu(
                                     file: file,
-                                    isDir: isDir,
+                                    isDir: file.isDarkOSDirectory,
                                     viewTrashBinMode: viewTrashBinMode,
                                     renameTargetURL: $renameTargetURL,
                                     renameInputText: $renameInputText,
@@ -288,12 +285,6 @@ struct FileManagerView: View {
         return "C:\\DarkOS\\Drive" + subPath.replacingOccurrences(of: "/", with: "\\").uppercased()
     }
     
-    private func checkIsDirectory(url: URL) -> Bool {
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-        return isDir.boolValue
-    }
-    
     private func fileIcon(for url: URL) -> String {
         let ext = url.pathExtension.lowercased()
         if ["png", "jpg", "jpeg", "gif", "heic"].contains(ext) { return "photo.fill" }
@@ -325,7 +316,6 @@ struct FileManagerView: View {
     }
 }
 
-// MARK: - FILE EXPLORER CONTEXT MENU SUBVIEW
 struct FileContextMenu: View {
     let file: URL
     let isDir: Bool
