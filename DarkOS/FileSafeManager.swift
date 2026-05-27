@@ -1,9 +1,4 @@
-//
-//  FileSafeManager.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/19/26.
-//
+// DarkOS/FileSafeManager.swift
 
 import Foundation
 
@@ -14,6 +9,19 @@ class FileSafeManager {
         let url = getDocumentsDirectory().appendingPathComponent(".SafeTrash")
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
         return url
+    }
+    
+    static func getFailedAttempts() -> Int {
+        return UserDefaults.standard.integer(forKey: "darkos_vault_fails")
+    }
+    
+    static func recordFailedAttempt() {
+        let current = getFailedAttempts()
+        UserDefaults.standard.set(current + 1, forKey: "darkos_vault_fails")
+    }
+    
+    static func resetFailedAttempts() {
+        UserDefaults.standard.set(0, forKey: "darkos_vault_fails")
     }
     
     static func listCurrentSafeContents() -> [URL] {
@@ -49,19 +57,19 @@ class FileSafeManager {
     }
     
     static func moveSafeItemToTrash(fileURL: URL) {
-            let fileName = fileURL.deletingPathExtension().lastPathComponent
-            let ext = fileURL.pathExtension
-            var dest = safeTrashDirectory.appendingPathComponent(fileURL.lastPathComponent)
-            
-            var counter = 1
-            while FileManager.default.fileExists(atPath: dest.path) {
-                let newName = ext.isEmpty ? "\(fileName) (\(counter))" : "\(fileName) (\(counter)).\(ext)"
-                dest = safeTrashDirectory.appendingPathComponent(newName)
-                counter += 1
-            }
-            
-            try? FileManager.default.moveItem(at: fileURL, to: dest)
+        let fileName = fileURL.deletingPathExtension().lastPathComponent
+        let ext = fileURL.pathExtension
+        var dest = safeTrashDirectory.appendingPathComponent(fileURL.lastPathComponent)
+        
+        var counter = 1
+        while FileManager.default.fileExists(atPath: dest.path) {
+            let newName = ext.isEmpty ? "\(fileName) (\(counter))" : "\(fileName) (\(counter)).\(ext)"
+            dest = safeTrashDirectory.appendingPathComponent(newName)
+            counter += 1
         }
+        
+        try? FileManager.default.moveItem(at: fileURL, to: dest)
+    }
     
     static func restoreFromSafeTrash(fileURL: URL) {
         let dest = getDocumentsDirectory().appendingPathComponent(fileURL.lastPathComponent)
@@ -108,8 +116,22 @@ class FileSafeManager {
     private static let pinKey = "darkos_vault_pin"
     static func isPINSet() -> Bool { return UserDefaults.standard.string(forKey: pinKey) != nil }
     static func savePIN(_ pin: String) -> Bool { UserDefaults.standard.set(pin, forKey: pinKey); return true }
-    static func verifyPIN(_ pin: String) -> Bool { return UserDefaults.standard.string(forKey: pinKey) == pin }
-    static func deletePIN() -> Bool { UserDefaults.standard.removeObject(forKey: pinKey); return true }
+    
+    static func verifyPIN(_ pin: String) -> Bool {
+        let isValid = UserDefaults.standard.string(forKey: pinKey) == pin
+        if isValid {
+            resetFailedAttempts()
+        } else {
+            recordFailedAttempt()
+        }
+        return isValid
+    }
+    
+    static func deletePIN() -> Bool {
+        UserDefaults.standard.removeObject(forKey: pinKey)
+        resetFailedAttempts()
+        return true
+    }
     
     static func saveBinaryFile(filename: String, data: Data) -> Bool {
         let url = currentSafeDirectory.appendingPathComponent(filename)

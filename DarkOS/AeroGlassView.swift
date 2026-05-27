@@ -10,13 +10,22 @@ struct AeroGlassModifier: ViewModifier {
         let isLight = theme.isLightTheme
         
         content
-            .background(.ultraThinMaterial.opacity(isLight ? 0.85 : 0.65))
             .background(
-                LinearGradient(
-                    colors: [tintColor.opacity(isLight ? 0.15 : 0.25), theme.bgSolid.opacity(0.4)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(theme.bgSolid)
+                        .shadow(color: theme.shadow, radius: 10, x: 0, y: 5)
+                    
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial.opacity(isLight ? 0.85 : 0.65))
+                    
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(LinearGradient(
+                            colors: [tintColor.opacity(isLight ? 0.15 : 0.25), theme.bgSolid.opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -29,8 +38,7 @@ struct AeroGlassModifier: ViewModifier {
                         lineWidth: 1.2
                     )
             )
-            .cornerRadius(12)
-            .shadow(color: theme.shadow, radius: 10, x: 0, y: 5)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

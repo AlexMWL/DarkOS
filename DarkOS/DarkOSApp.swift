@@ -1,9 +1,4 @@
-//
-//  DarkOSApp.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/19/26.
-//
+// DarkOS/DarkOSApp.swift
 
 import SwiftUI
 

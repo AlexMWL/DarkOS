@@ -1,9 +1,4 @@
-//
-//  BrowserView.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/19/26.
-//
+// DarkOS/BrowserView.swift
 
 import SwiftUI
 import WebKit

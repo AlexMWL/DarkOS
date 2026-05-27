@@ -1,9 +1,4 @@
-//
-//  ProcessManager.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/19/26.
-//
+// DarkOS/ProcessManager.swift
 
 import SwiftUI
 import WebKit

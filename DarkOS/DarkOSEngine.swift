@@ -1,9 +1,4 @@
-//
-//  DarkOSEngine.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/23/26.
-//
+// DarkOS/DarkOSEngine.swift
 
 import WebKit
 

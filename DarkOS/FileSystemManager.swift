@@ -1,3 +1,5 @@
+// DarkOS/FileSystemManager.swift
+
 import Foundation
 import Combine
 
@@ -271,11 +273,5 @@ class FileSystemManager: ObservableObject {
         let next = forwardStack.removeLast()
         backStack.append(currentDirectory)
         currentDirectory = next
-    }
-}
-
-extension URL {
-    var isDarkOSDirectory: Bool {
-        return (try? resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
     }
 }

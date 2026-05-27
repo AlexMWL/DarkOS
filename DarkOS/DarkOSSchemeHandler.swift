@@ -1,9 +1,4 @@
-//
-//  DarkOSSchemeHandler.swift
-//  DarkOS
-//
-//  Created by DiscoTots on 5/20/26.
-//
+// DarkOS/DarkOSSchemeHandler.swift
 
 import Foundation
 import WebKit
