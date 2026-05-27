@@ -9,33 +9,53 @@ extension WKWebViewConfiguration {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         
-        let antiHijackScript = """
+        let darkOSInjectionScript = """
+            // 1. Force the viewport to scale correctly
+            if (!document.querySelector('meta[name="viewport"]')) {
+                var meta = document.createElement('meta');
+                meta.name = "viewport";
+                meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+                document.head.appendChild(meta);
+            }
+
+            // 2. The Scale-to-Fit Engine
+            function fitToFrame() {
+                const contentWidth = document.body.scrollWidth;
+                const frameWidth = window.innerWidth;
+                const scale = frameWidth / contentWidth;
+                
+                // Only scale if the content is bigger than the frame
+                if (contentWidth > frameWidth) {
+                    document.body.style.transform = `scale(${scale})`;
+                    document.body.style.transformOrigin = 'top left';
+                    document.body.style.width = `${contentWidth}px`;
+                }
+            }
+            
+            // 3. Hijack Media/Fullscreen
             function enforceInline() {
                 document.querySelectorAll('video').forEach(v => {
                     v.setAttribute('playsinline', '');
                     v.setAttribute('webkit-playsinline', '');
                 });
             }
-            enforceInline();
+            
+            window.onload = () => { enforceInline(); fitToFrame(); };
+            window.onresize = () => { fitToFrame(); };
             const observer = new MutationObserver(enforceInline);
             observer.observe(document.body, { childList: true, subtree: true });
 
+            // Block fullscreen
             window.Element.prototype.requestFullscreen = function() { return Promise.resolve(); };
-            window.Element.prototype.webkitRequestFullscreen = function() { return Promise.resolve(); };
             
             var style = document.createElement('style');
             style.innerHTML = `
-                body, html { width: 100% !important; height: 100% !important; overflow: hidden !important; }
-                video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
-                .fullscreen-button, .tiktok-player-fullscreen, [role="button"][aria-label*="Full"] { display: none !important; }
+                body { overflow-x: hidden !important; }
             `;
             document.head.appendChild(style);
-
-            document.addEventListener('fullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
-            document.addEventListener('webkitfullscreenchange', (e) => { e.stopImmediatePropagation(); }, true);
         """
         
-        let script = WKUserScript(source: antiHijackScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        let script = WKUserScript(source: darkOSInjectionScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
         
         return config

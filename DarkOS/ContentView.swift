@@ -45,7 +45,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                
+                .coordinateSpace(name: "desktop")
                 taskbar
             }
             
