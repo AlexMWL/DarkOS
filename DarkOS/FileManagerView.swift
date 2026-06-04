@@ -48,24 +48,24 @@ struct FileManagerView: View {
                 fileListView
             }
         }
-        .alert("CREATE SUB-DIRECTORY", isPresented: $showNewFolderAlert) {
+        .alert("Create Sub-Directory", isPresented: $showNewFolderAlert) {
             TextField("Folder Identity Name", text: $folderNameInput).autocapitalization(.none)
-            Button("ALLOCATE") { if !folderNameInput.isEmpty { fs.createFolder(named: folderNameInput) }; folderNameInput = "" }
-            Button("CANCEL", role: .cancel) { folderNameInput = "" }
+            Button("Allocate") { if !folderNameInput.isEmpty { fs.createFolder(named: folderNameInput) }; folderNameInput = "" }
+            Button("Cancel", role: .cancel) { folderNameInput = "" }
         }
-        .alert("RENAME DRIVE ASSET", isPresented: $showRenameAlert) {
-            TextField("New Asset Label", text: $renameInputText).autocapitalization(.none)
-            Button("MODIFY") { if let target = renameTargetURL, !renameInputText.isEmpty { fs.renameFile(fileURL: target, to: renameInputText) }; renameTargetURL = nil; renameInputText = "" }
-            Button("CANCEL", role: .cancel) { renameTargetURL = nil; renameInputText = "" }
+        .alert("Rename Drive Asset", isPresented: $showRenameAlert) {
+            TextField("New Label", text: $renameInputText).autocapitalization(.none)
+            Button("Modify") { if let target = renameTargetURL, !renameInputText.isEmpty { fs.renameFile(fileURL: target, to: renameInputText) }; renameTargetURL = nil; renameInputText = "" }
+            Button("Cancel", role: .cancel) { renameTargetURL = nil; renameInputText = "" }
         }
         .sheet(item: $selectedFile) { url in InternalFileViewer(fileURL: url) }
         .sheet(item: $sourceViewFile) { url in InternalFileViewer(fileURL: url, forceTextView: true) }
-        .alert(installAlertMessage, isPresented: $showInstallAlert) { Button("ACKNOWLEDGE", role: .cancel) { } }
-        .alert("HTML DETECTED", isPresented: $showHTMLChoiceAlert, presenting: htmlAlertFile) { file in
-            Button("EXECUTE AS SYSTEM APP") { pm.launchProcess(from: file); isPresented = false; htmlAlertFile = nil }
-            Button("VIEW SOURCE CODE") { let targetFile = file; htmlAlertFile = nil; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.sourceViewFile = targetFile } }
-            Button("CANCEL", role: .cancel) { htmlAlertFile = nil }
-        } message: { file in Text("CHOOSE RUNTIME PARSING METHOD FOR\n\(file.lastPathComponent.uppercased())") }
+        .alert(installAlertMessage, isPresented: $showInstallAlert) { Button("OK", role: .cancel) { } }
+        .alert("HTML Detected", isPresented: $showHTMLChoiceAlert, presenting: htmlAlertFile) { file in
+            Button("Execute As Module") { pm.launchProcess(from: file); isPresented = false; htmlAlertFile = nil }
+            Button("View Source Code") { let targetFile = file; htmlAlertFile = nil; DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.sourceViewFile = targetFile } }
+            Button("Cancel", role: .cancel) { htmlAlertFile = nil }
+        } message: { file in Text("Choose Run Option For\n\(file.lastPathComponent.uppercased())") }
         .fileImporter(isPresented: $showLocalFilePicker, allowedContentTypes: [.html, .plainText, .data], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls):
@@ -116,7 +116,7 @@ struct FileManagerView: View {
     
     private var compilerWorkspace: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Over-The-Air System Compiler Workspace").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.accent)
+            Text("URL Compiler").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.accent)
             HStack(spacing: 8) {
                 TextField("URL Source Link...", text: $webURLString).textFieldStyle(.plain).font(.system(size: 12, design: .monospaced)).padding(8).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
                 TextField("App Label", text: $downloadName).textFieldStyle(.plain).font(.system(size: 12, design: .monospaced)).padding(8).frame(width: 100).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
@@ -125,10 +125,10 @@ struct FileManagerView: View {
                         installAlertMessage = success ? "MANIFEST MODULE COMPILED SUCCESSFULLY." : "PACKET DISCOVERY INTERRUPT EXCEPTION."
                         showInstallAlert = true; if success { webURLString = ""; downloadName = "" }
                     }
-                }) { Text("COMPILE").font(.system(size: 11, weight: .black, design: .rounded)).padding(.vertical, 8).padding(.horizontal, 16).background(theme.accent).foregroundColor(.white).cornerRadius(4) }
+                }) { Text("Compile").font(.system(size: 11, weight: .black, design: .rounded)).padding(.vertical, 8).padding(.horizontal, 16).background(theme.accent).foregroundColor(.white).cornerRadius(4) }
             }
             Button(action: { showLocalFilePicker = true }) {
-                Label("Inject External Module Node Asset (.html / .js)", systemImage: "square.and.arrow.down.fill").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.text).frame(maxWidth: .infinity).padding(10).background(theme.panel).cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.border, lineWidth: 1))
+                Label("Import External Module (.html / .js)", systemImage: "square.and.arrow.down.fill").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.text).frame(maxWidth: .infinity).padding(10).background(theme.panel).cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.border, lineWidth: 1))
             }
         }
         .padding().background(theme.panel)
@@ -196,18 +196,18 @@ struct FileContextMenu: View {
     var body: some View {
         if viewTrashBinMode {
             Button(action: { fs.restoreFromTrash(fileURL: file) }) { Label("Restore File to Drive", systemImage: "arrow.uturn.backward.circle.fill") }
-            Button(role: .destructive, action: { fs.permanentlyDelete(fileURL: file) }) { Label("Permanently Purge", systemImage: "trash.slash.fill") }
+            Button(role: .destructive, action: { fs.permanentlyDelete(fileURL: file) }) { Label("Purge", systemImage: "trash.slash.fill") }
         } else {
-            Button(action: { renameTargetURL = file; renameInputText = file.deletingPathExtension().lastPathComponent; showRenameAlert = true }) { Label("Rename Asset", systemImage: "pencil") }
-            Button(action: { fileClipboard = file; clipboardIsCutOperation = false }) { Label("Copy Asset", systemImage: "doc.on.doc.fill") }
-            Button(action: { fileClipboard = file; clipboardIsCutOperation = true }) { Label("Cut Asset (Move)", systemImage: "scissors") }
-            Button(action: { fs.moveToTrash(fileURL: file) }) { Label("Move to Recycle Bin", systemImage: "trash.fill") }
+            Button(action: { renameTargetURL = file; renameInputText = file.deletingPathExtension().lastPathComponent; showRenameAlert = true }) { Label("Rename", systemImage: "pencil") }
+            Button(action: { fileClipboard = file; clipboardIsCutOperation = false }) { Label("Copy", systemImage: "doc.on.doc.fill") }
+            Button(action: { fileClipboard = file; clipboardIsCutOperation = true }) { Label("Cut", systemImage: "scissors") }
+            Button(action: { fs.moveToTrash(fileURL: file) }) { Label("Move to Trash", systemImage: "trash.fill") }
             if !isDir {
-                Button(action: { _ = FileSafeManager.importFromInternalPath(sourceURL: file) }) { Label("Move to Secure File_Safe", systemImage: "lock.doc.fill") }
+                Button(action: { _ = FileSafeManager.importFromInternalPath(sourceURL: file) }) { Label("Move to File_Safe", systemImage: "lock.doc.fill") }
                 if ["html", "js"].contains(file.pathExtension.lowercased()) {
                     Divider()
                     Button(action: { fs.toggleDesktopShortcut(url: file) }) { Label(fs.desktopShortcuts.contains(file) ? "Unpin from Desktop" : "Pin to Desktop", systemImage: fs.desktopShortcuts.contains(file) ? "desktopcomputer" : "plus.rectangle.on.folder") }
-                    Button(action: { fs.toggleDockShortcut(url: file) }) { Label(fs.dockShortcuts.contains(file) ? "Unpin from Core Dock" : "Pin to Core Dock", systemImage: fs.dockShortcuts.contains(file) ? "pin.fill" : "pin") }
+                    Button(action: { fs.toggleDockShortcut(url: file) }) { Label(fs.dockShortcuts.contains(file) ? "Unpin from Dock" : "Pin to Dock", systemImage: fs.dockShortcuts.contains(file) ? "pin.fill" : "pin") }
                     Button(action: { fs.toggleStartMenuShortcut(url: file) }) { Label(fs.startMenuShortcuts.contains(file) ? "Unpin from Start Menu" : "Pin to Start Menu", systemImage: fs.startMenuShortcuts.contains(file) ? "command.circle.fill" : "command") }
                 }
             }

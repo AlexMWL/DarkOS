@@ -135,7 +135,7 @@ struct ContentView: View {
                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                     NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
                 }) {
-                    Label("Task Butcher", systemImage: "gauge.with.needle.fill")
+                    Label("Task Killer", systemImage: "gauge.with.needle.fill")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundColor(theme.text)
                         .padding(.vertical, 6)
@@ -315,7 +315,7 @@ struct ContentView: View {
                 Spacer()
                 HStack {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("🔴 PROGRAMS REGISTER INDEX")
+                        Text("🔴 Module Index")
                             .font(.system(size: 11, weight: .black, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -372,7 +372,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HStack {
                     Image(systemName: "gauge.with.needle.fill").foregroundColor(theme.text)
-                    Text("Task Butcher")
+                    Text("Task Killer")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundColor(theme.text)
                         .shadow(color: theme.shadow, radius: 2)
