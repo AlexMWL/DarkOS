@@ -16,7 +16,7 @@ struct WindowNode: View {
     @GestureState private var dragScale: CGFloat = 0.0
     
     @State private var isMaximized: Bool = false
-    @State private var isInteracting: Bool = false
+
     
     var body: some View {
         let isActive = pm.activeProcessID == process.id
@@ -54,21 +54,21 @@ struct WindowNode: View {
 
     private func windowHeader(isActive: Bool) -> some View {
         HStack {
-            Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_SAFE" ? "lock.shield.fill" : (process.name == "FILE_MANAGER" ? "folder.fill" : "cpu.fill")))
+            Image(systemName: process.name == "BROWSER" ? "globe" : (process.name == "FILE_VAULT" ? "lock.shield.fill" : (process.name == "MODULE_MANAGER" ? "terminal.fill" : (process.name == "FILE_EXPLORER" ? "folder.fill" : "cpu.fill"))))
                 .foregroundColor(theme.text).shadow(color: theme.glow, radius: 2)
             Text(process.name.replacingOccurrences(of: "_", with: " "))
-                .font(.system(size: 12, weight: .black, design: .rounded))
+                .font(.system(size: 10.5, weight: .black, design: .rounded))
                 .foregroundColor(theme.text).shadow(color: theme.shadow, radius: 3)
             Spacer()
             HStack(spacing: 8) {
                 Button(action: { minimizedWindows.insert(process.id); if pm.activeProcessID == process.id { pm.activeProcessID = nil } }) {
-                    Text("—").font(.system(size: 11, weight: .bold)).foregroundColor(theme.text).frame(width: 26, height: 20).background(theme.panel).cornerRadius(3)
+                    Text("—").font(.system(size: 9.5, weight: .bold)).foregroundColor(theme.text).frame(width: 26, height: 20).background(theme.panel).cornerRadius(3)
                 }
                 Button(action: { withAnimation(.spring()) { isMaximized.toggle() } }) {
-                    Image(systemName: isMaximized ? "square.on.square" : "square").font(.system(size: 10, weight: .bold)).foregroundColor(theme.text).frame(width: 26, height: 20).background(theme.panel).cornerRadius(3)
+                    Image(systemName: isMaximized ? "square.on.square" : "square").font(.system(size: 8.5, weight: .bold)).foregroundColor(theme.text).frame(width: 26, height: 20).background(theme.panel).cornerRadius(3)
                 }
                 Button(action: { pm.terminateProcess(id: process.id); minimizedWindows.remove(process.id) }) {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .black)).foregroundColor(.white).frame(width: 38, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
+                    Image(systemName: "xmark").font(.system(size: 8.5, weight: .black)).foregroundColor(.white).frame(width: 38, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
                 }
             }
         }
@@ -86,8 +86,9 @@ struct WindowNode: View {
     private func windowContent(isActive: Bool) -> some View {
         Group {
             if process.name == "BROWSER" { BrowserView(isPresented: .constant(true)) }
-            else if process.name == "FILE_SAFE" { LockerView() }
-            else if process.name == "FILE_MANAGER" { FileManagerView(isPresented: .constant(true)) }
+            else if process.name == "FILE_VAULT" { LockerView() }
+            else if process.name == "MODULE_MANAGER" { ModuleManagerView(isPresented: .constant(true)) }
+            else if process.name == "FILE_EXPLORER" { FileExplorerView() }
             else { OSWebViewWrapper(webView: process.webView) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,7 +98,7 @@ struct WindowNode: View {
     
     private var resizeHandle: some View {
         Image(systemName: "arrow.up.left.and.arrow.down.right")
-            .font(.system(size: 12, weight: .black))
+            .font(.system(size: 10.5, weight: .black))
             .foregroundColor(theme.text.opacity(0.6))
             .padding(14)
             .background(Color.white.opacity(0.001))

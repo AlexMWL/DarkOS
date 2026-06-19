@@ -18,6 +18,12 @@ class ThemeManager: ObservableObject {
             }
         }
     
+    @Published var showDesktopLabels: Bool = UserDefaults.standard.object(forKey: "showDesktopLabels") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(showDesktopLabels, forKey: "showDesktopLabels")
+        }
+    }
+    
     var bgSolid: Color { isLightTheme ? .white : .black }
     var bgGradientStart: Color { isLightTheme ? Color(red: 0.85, green: 0.95, blue: 1.0) : Color(red: 0.15, green: 0, blue: 0) }
     

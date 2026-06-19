@@ -23,11 +23,7 @@ struct ContentView: View {
     @State private var glitchYOffset: CGFloat = 0.0
     private let glitchTimer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
     
-    @State private var webURLString = ""
-    @State private var downloadName = ""
-    @State private var showLocalFilePicker = false
-    @State private var installAlertMessage = ""
-    @State private var showInstallAlert = false
+
     
     var body: some View {
         ZStack {
@@ -53,17 +49,12 @@ struct ContentView: View {
             if showTaskManager { taskManagerOverlay }
             if showSettings { settingsOverlay }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleFileManager)) { _ in
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            showFileManager.toggle()
-        }
+
         .onReceive(NotificationCenter.default.publisher(for: .darkOSToggleTaskManager)) { _ in
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             showTaskManager.toggle()
         }
-        .alert(installAlertMessage, isPresented: $showInstallAlert) {
-            Button("ACKNOWLEDGE", role: .cancel) { }
-        }
+
     }
     
     private var desktopBackground: some View {
@@ -118,13 +109,17 @@ struct ContentView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 Text("DarkOS by Lex // Desktop")
-                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .font(.system(size: 9.5, weight: .black, design: .rounded))
                     .foregroundColor(theme.text)
                     .shadow(color: theme.glow, radius: 2)
                 
                 if theme.showDiagnostics {
-                    Text("PID_Pool: \(pm.runningProcesses.count) Active Processes  |  RAM Used: \(String(format: "%.1f", pm.currentRamUsage)) MB")
-                        .font(.system(size: 10, design: .monospaced))
+                    Text("PROCESSES: \(pm.runningProcesses.count) Active  |  RAM: \(String(format: "%.1f", pm.currentRamUsage)) MB")
+                        .font(.system(size: 8.5, design: .monospaced))
+                        .foregroundColor(theme.textMuted)
+                    
+                    Text("DISK USED: \(fs.getUsedDiskSpaceDisplay())")
+                        .font(.system(size: 8.5, design: .monospaced))
                         .foregroundColor(theme.textMuted)
                 }
             }
@@ -136,7 +131,7 @@ struct ContentView: View {
                     NotificationCenter.default.post(name: .darkOSToggleTaskManager, object: nil)
                 }) {
                     Label("Task Killer", systemImage: "gauge.with.needle.fill")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
                         .foregroundColor(theme.text)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 12)
@@ -150,7 +145,7 @@ struct ContentView: View {
                     showSettings.toggle()
                 }) {
                     Image(systemName: "folder.badge.gearshape")
-                        .font(.title3)
+                        .font(.caption2)
                         .foregroundColor(theme.text)
                         .frame(width: 32, height: 32)
                         .background(theme.panel)
@@ -168,9 +163,9 @@ struct ContentView: View {
     private var desktopGrid: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 85, maximum: 100))], spacing: 25) {
-                let builtInApps = ["Browser", "File_Safe", "File_Manager"]
+                let builtInModules = ["Browser", "Module_Manager", "File_Explorer"].filter { !fs.hiddenBuiltInApps.contains($0) }
                 
-                ForEach(builtInApps, id: \.self) { appName in
+                ForEach(builtInModules, id: \.self) { appName in
                     let virtualURL = fs.rootDirectory.appendingPathComponent(appName)
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -184,18 +179,28 @@ struct ContentView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 0.8))
                                     .shadow(color: theme.shadow, radius: 3)
                                 
-                                Image(systemName: appName == "File_Safe" ? "lock.shield.fill" :
-                                        (appName == "Browser" ? "globe" :
-                                            (appName == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
-                                .font(.title2)
-                                .foregroundColor(appName == "File_Safe" ? .green : theme.accent)
+                                Image(systemName: appName == "Browser" ? "globe" :
+                                        (appName == "Module_Manager" ? "terminal.fill" :
+                                            (appName == "File_Explorer" ? "folder.fill" : "gauge.with.needle.fill")))
+                                .font(.caption2)
+                                .foregroundColor(appName == "File_Vault" ? .green : theme.accent)
                             }
-                            
-                            Text(appName.replacingOccurrences(of: "_", with: " ").uppercased())
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundColor(theme.text)
-                                .shadow(color: theme.shadow, radius: 4)
-                                .lineLimit(1)
+                            if theme.showDesktopLabels {
+                                Text(appName.replacingOccurrences(of: "_", with: " ").uppercased())
+                                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                    .foregroundColor(theme.text)
+                                    .shadow(color: theme.shadow, radius: 4)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(height: 24, alignment: .top)
+                            }
+                        }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive, action: {
+                            fs.hideBuiltInApp(appName)
+                        }) {
+                            Label("Remove from Desktop", systemImage: "trash")
                         }
                     }
                 }
@@ -213,19 +218,23 @@ struct ContentView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.accent.opacity(0.3), lineWidth: 0.8))
                                 
                                 Image(systemName: "bolt.shield.fill")
-                                    .font(.title2)
+                                    .font(.caption2)
                                     .foregroundColor(theme.accent)
                             }
-                            Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundColor(theme.text)
-                                .shadow(color: theme.shadow, radius: 4)
-                                .lineLimit(1)
+                            if theme.showDesktopLabels {
+                                Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
+                                    .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                    .foregroundColor(theme.text)
+                                    .shadow(color: theme.shadow, radius: 4)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(height: 24, alignment: .top)
+                            }
                         }
                     }
                     .contextMenu {
                         Button(role: .destructive, action: { fs.removeDesktopShortcut(url: appURL) }) {
-                            Label("Unpin Asset", systemImage: "trash")
+                            Label("Remove from Desktop", systemImage: "trash")
                         }
                     }
                 }
@@ -248,7 +257,7 @@ struct ContentView: View {
                         .overlay(Circle().stroke(theme.text.opacity(0.35), lineWidth: 1.2))
                         .shadow(color: theme.accent.opacity(showStartMenu ? 0.9 : 0.4), radius: 6)
                     
-                    Image(systemName: "command").font(.system(size: 16, weight: .bold)).foregroundColor(.white)
+                    Image(systemName: "command").font(.system(size: 14.5, weight: .bold)).foregroundColor(.white)
                 }
             }
             
@@ -260,10 +269,11 @@ struct ContentView: View {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         pm.launchProcess(from: shortcutURL)
                     }) {
-                        Image(systemName: shortcutURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
+                        Image(systemName: shortcutURL.lastPathComponent == "File_Vault" ? "lock.shield.fill" :
                                 (shortcutURL.lastPathComponent == "Browser" ? "globe" :
-                                    (shortcutURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
-                        .font(.system(size: 15)).foregroundColor(theme.text).frame(width: 36, height: 36)
+                                    (shortcutURL.lastPathComponent == "Module_Manager" ? "terminal.fill" :
+                                        (shortcutURL.lastPathComponent == "File_Explorer" ? "folder.fill" : "gauge.with.needle.fill"))))
+                        .font(.system(size: 13.5)).foregroundColor(theme.text).frame(width: 36, height: 36)
                         .background(LinearGradient(colors: [theme.text.opacity(0.15), .clear], startPoint: .top, endPoint: .bottom))
                         .cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.text.opacity(0.25), lineWidth: 0.8))
                     }
@@ -285,7 +295,7 @@ struct ContentView: View {
                         }) {
                             HStack(spacing: 6) {
                                 Circle().fill(isActive ? Color.green : (isMinimized ? Color.gray : theme.accent)).frame(width: 6, height: 6)
-                                Text(process.name).font(.system(size: 11, weight: isActive ? .black : .regular, design: .rounded))
+                                Text(process.name).font(.system(size: 9.5, weight: isActive ? .black : .regular, design: .rounded))
                                     .foregroundColor(isMinimized ? theme.text.opacity(0.4) : theme.text)
                             }
                             .padding(.horizontal, 14).padding(.vertical, 8)
@@ -316,7 +326,7 @@ struct ContentView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("🔴 Module Index")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(.system(size: 9.5, weight: .black, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(12)
@@ -324,21 +334,22 @@ struct ContentView: View {
                         
                         ScrollView {
                             VStack(spacing: 2) {
-                                ForEach(fs.installedApps, id: \.self) { appURL in
-                                    if appURL.lastPathComponent != "Browser.html" {
+                                ForEach(fs.installedModules, id: \.self) { appURL in
+                                    if appURL.lastPathComponent != "Browser.html" && appURL.lastPathComponent != "File_Vault" {
                                         Button(action: {
                                             pm.launchProcess(from: appURL)
                                             showStartMenu = false
                                         }) {
                                             HStack(spacing: 12) {
-                                                Image(systemName: appURL.lastPathComponent == "File_Safe" ? "lock.shield.fill" :
+                                                Image(systemName: appURL.lastPathComponent == "File_Vault" ? "lock.shield.fill" :
                                                         (appURL.lastPathComponent == "Browser" ? "globe" :
-                                                            (appURL.lastPathComponent == "File_Manager" ? "terminal.fill" : "gauge.with.needle.fill")))
+                                                            (appURL.lastPathComponent == "Module_Manager" ? "terminal.fill" :
+                                                                (appURL.lastPathComponent == "File_Explorer" ? "folder.fill" : "gauge.with.needle.fill"))))
                                                 .foregroundColor(theme.accent)
                                                 .frame(width: 18)
                                                 
-                                                Text(appURL.deletingPathExtension().lastPathComponent.uppercased())
-                                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                                Text(appURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ").uppercased())
+                                                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                                                     .foregroundColor(theme.text)
                                                 Spacer()
                                             }
@@ -346,6 +357,37 @@ struct ContentView: View {
                                             .padding(.horizontal, 14)
                                             .background(theme.panel)
                                             .cornerRadius(4)
+                                        }
+                                        .contextMenu {
+                                            if ["Browser", "Module_Manager", "File_Explorer"].contains(appURL.lastPathComponent) {
+                                                if fs.hiddenBuiltInApps.contains(appURL.lastPathComponent) {
+                                                    Button(action: {
+                                                        fs.showBuiltInApp(appURL.lastPathComponent)
+                                                    }) {
+                                                        Label("Add to Desktop", systemImage: "desktopcomputer")
+                                                    }
+                                                } else {
+                                                    Button(action: {
+                                                        fs.hideBuiltInApp(appURL.lastPathComponent)
+                                                    }) {
+                                                        Label("Remove from Desktop", systemImage: "trash")
+                                                    }
+                                                }
+                                            } else {
+                                                if fs.desktopShortcuts.contains(appURL) {
+                                                    Button(action: {
+                                                        fs.removeDesktopShortcut(url: appURL)
+                                                    }) {
+                                                        Label("Remove from Desktop", systemImage: "trash")
+                                                    }
+                                                } else {
+                                                    Button(action: {
+                                                        fs.toggleDesktopShortcut(url: appURL)
+                                                    }) {
+                                                        Label("Add to Desktop", systemImage: "desktopcomputer")
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -373,12 +415,12 @@ struct ContentView: View {
                 HStack {
                     Image(systemName: "gauge.with.needle.fill").foregroundColor(theme.text)
                     Text("Task Killer")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
                         .foregroundColor(theme.text)
                         .shadow(color: theme.shadow, radius: 2)
                     Spacer()
                     Button(action: { showTaskManager = false }) {
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .black)).foregroundColor(.white).frame(width: 36, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
+                        Image(systemName: "xmark").font(.system(size: 8.5, weight: .black)).foregroundColor(.white).frame(width: 36, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -387,29 +429,29 @@ struct ContentView: View {
                 
                 VStack(spacing: 0) {
                     HStack {
-                        Text("PROCESS").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(maxWidth: .infinity, alignment: .leading)
-                        Text("VIRT_RAM").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(width: 80, alignment: .center)
-                        Text("ACTION").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(width: 90, alignment: .trailing)
+                        Text("PROCESS").font(.system(size: 8.5, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(maxWidth: .infinity, alignment: .leading)
+                        Text("VIRT_RAM").font(.system(size: 8.5, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(width: 80, alignment: .center)
+                        Text("ACTION").font(.system(size: 8.5, weight: .bold, design: .monospaced)).foregroundColor(theme.accent.opacity(0.9)).frame(width: 90, alignment: .trailing)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(theme.bgSolid.opacity(0.3))
                     
                     if pm.runningProcesses.isEmpty {
                         Text("NO CONCURRENT THREADS DETECTED.")
-                            .font(.system(size: 11, design: .monospaced)).foregroundColor(theme.textMuted)
+                            .font(.system(size: 9.5, design: .monospaced)).foregroundColor(theme.textMuted)
                             .padding()
                     } else {
                         ScrollView {
                             VStack(spacing: 6) {
                                 ForEach(pm.runningProcesses) { process in
                                     HStack {
-                                        Text(process.name).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(theme.text).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                                        Text("\(String(format: "%.1f", process.ramUsage)) MB").font(.system(size: 11, design: .monospaced)).foregroundColor(theme.text).frame(width: 80, alignment: .center)
+                                        Text(process.name).font(.system(size: 9.5, weight: .bold, design: .monospaced)).foregroundColor(theme.text).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
+                                        Text("\(String(format: "%.1f", process.ramUsage)) MB").font(.system(size: 9.5, design: .monospaced)).foregroundColor(theme.text).frame(width: 80, alignment: .center)
                                         Button(action: {
                                             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                                             pm.terminateProcess(id: process.id)
                                         }) {
-                                            Text("KILL").font(.system(size: 10, weight: .black, design: .monospaced)).foregroundColor(.white).padding(.horizontal, 12).padding(.vertical, 6).background(theme.accent).cornerRadius(3)
+                                            Text("KILL").font(.system(size: 8.5, weight: .black, design: .monospaced)).foregroundColor(.white).padding(.horizontal, 12).padding(.vertical, 6).background(theme.accent).cornerRadius(3)
                                         }
                                         .frame(width: 90, alignment: .trailing)
                                     }
@@ -439,12 +481,12 @@ struct ContentView: View {
                 HStack {
                     Image(systemName: "gearshape.fill").foregroundColor(theme.text)
                     Text("System Settings")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
                         .foregroundColor(theme.text)
                         .shadow(color: theme.shadow, radius: 2)
                     Spacer()
                     Button(action: { showSettings = false }) {
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .black)).foregroundColor(.white).frame(width: 36, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
+                        Image(systemName: "xmark").font(.system(size: 8.5, weight: .black)).foregroundColor(.white).frame(width: 36, height: 20).background(theme.accent.opacity(0.85)).cornerRadius(3)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -453,17 +495,27 @@ struct ContentView: View {
                 
                 VStack(spacing: 25) {
                     Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 40))
+                        .font(.system(size: 38.5))
                         .foregroundColor(theme.accent)
                         .shadow(color: theme.glow, radius: 10)
                     
                     Text("SYSTEM PREFERENCES")
-                        .font(.system(size: 14, weight: .black, design: .monospaced))
+                        .font(.system(size: 12.5, weight: .black, design: .monospaced))
                         .foregroundColor(theme.text)
                     
                     VStack(spacing: 12) {
                         Toggle(isOn: $theme.isLightTheme) {
                             Text(theme.isLightTheme ? "Light Mode (White/Blue)" : "Dark Mode (Red/Black)")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(theme.text)
+                        }
+                        .toggleStyle(SwitchToggleStyle(tint: theme.accent))
+                        .padding()
+                        .background(theme.panel)
+                        .cornerRadius(8)
+                        
+                        Toggle(isOn: $theme.showDesktopLabels) {
+                            Text("Desktop Labels: \(theme.showDesktopLabels ? "VISIBLE" : "HIDDEN")")
                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .foregroundColor(theme.text)
                         }

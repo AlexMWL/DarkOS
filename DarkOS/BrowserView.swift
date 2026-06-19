@@ -15,7 +15,7 @@ struct BrowserTab: Identifiable, Equatable {
 }
 
 struct Bookmark: Identifiable, Codable, Equatable {
-    let id = UUID()
+    var id = UUID()
     var name: String
     var urlString: String
 }
@@ -74,7 +74,7 @@ struct BrowserView: View {
                                         switch phase {
                                         case .empty:
                                             Image(systemName: "globe")
-                                                .font(.system(size: showFullTab ? 10 : 14))
+                                                .font(.system(size: showFullTab ? 8.5 : 12.5))
                                                 .foregroundColor(isActive ? .cyan : .gray)
                                         case .success(let image):
                                             image
@@ -84,7 +84,7 @@ struct BrowserView: View {
                                                 .cornerRadius(2)
                                         case .failure:
                                             Image(systemName: "globe")
-                                                .font(.system(size: showFullTab ? 10 : 14))
+                                                .font(.system(size: showFullTab ? 8.5 : 12.5))
                                                 .foregroundColor(isActive ? .cyan : .gray)
                                         @unknown default:
                                             Image(systemName: "globe")
@@ -93,13 +93,13 @@ struct BrowserView: View {
                                 } else {
                                     // Show a document icon for local files, or a globe for blanks
                                     Image(systemName: tab.url.absoluteString.hasPrefix("file://") ? "doc.text.fill" : "globe")
-                                        .font(.system(size: showFullTab ? 10 : 14))
+                                        .font(.system(size: showFullTab ? 8.5 : 12.5))
                                         .foregroundColor(isActive ? .cyan : .gray)
                                 }
                                 
                                 if showFullTab {
                                     Text(tab.title)
-                                        .font(.system(size: 11, weight: isActive ? .bold : .regular, design: .monospaced))
+                                        .font(.system(size: 9.5, weight: isActive ? .bold : .regular, design: .monospaced))
                                         .foregroundColor(isActive ? .white : .gray)
                                         .lineLimit(1)
                                         .frame(maxWidth: 120, alignment: .leading)
@@ -107,7 +107,7 @@ struct BrowserView: View {
                                     if tabs.count > 1 {
                                         Button(action: { closeTab(tab) }) {
                                             Image(systemName: "xmark")
-                                                .font(.system(size: 9, weight: .bold))
+                                                .font(.system(size: 7.5, weight: .bold))
                                                 .foregroundColor(isActive ? .white : .gray.opacity(0.7))
                                                 .padding(4)
                                                 .background(Color.white.opacity(0.001))
@@ -128,7 +128,7 @@ struct BrowserView: View {
                         // New Tab Button
                         Button(action: { createNewTab() }) {
                             Image(systemName: "plus")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 10.5, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(10)
                                 .background(Color.white.opacity(0.05))
@@ -145,27 +145,27 @@ struct BrowserView: View {
                     HStack(spacing: 18) {
                         Button(action: { activeTab?.store.webView.goBack() }) {
                             Image(systemName: "arrow.left")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(activeTab?.store.canGoBack == true ? .white : .gray)
                         }
                         .disabled(!(activeTab?.store.canGoBack ?? false))
                         
                         Button(action: { activeTab?.store.webView.goForward() }) {
                             Image(systemName: "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(activeTab?.store.canGoForward == true ? .white : .gray)
                         }
                         .disabled(!(activeTab?.store.canGoForward ?? false))
                         
                         Button(action: { activeTab?.store.webView.reload() }) {
                             Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 11.5, weight: .bold))
                                 .foregroundColor(.white)
                         }
                         
                         Button(action: goHome) {
                             Image(systemName: "house.fill")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 11.5, weight: .bold))
                                 .foregroundColor(.white)
                         }
                     }
@@ -173,11 +173,11 @@ struct BrowserView: View {
                     // Address Bar
                     HStack {
                         Image(systemName: urlInputString.hasPrefix("https") ? "lock.fill" : "lock.open.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 8.5))
                             .foregroundColor(urlInputString.hasPrefix("https") ? .gray : .red)
                         
                         TextField("Search or type URL", text: $urlInputString)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: 10.5, design: .monospaced))
                             .foregroundColor(.white)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
@@ -191,14 +191,14 @@ struct BrowserView: View {
                                 urlInputString = ""
                             }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 10.5))
                                     .foregroundColor(.gray)
                             }
                         }
                         
                         Button(action: { prepareAddBookmark() }) {
                             Image(systemName: isBookmarked(urlInputString) ? "star.fill" : "star")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 10.5, weight: .bold))
                                 .foregroundColor(isBookmarked(urlInputString) ? .yellow : .gray)
                         }
                     }
@@ -210,7 +210,7 @@ struct BrowserView: View {
                     HStack(spacing: 16) {
                         Button(action: { showBookmarksDrawer.toggle() }) {
                             Image(systemName: "bookmark.square.fill")
-                                .font(.system(size: 16))
+                                .font(.system(size: 14.5))
                                 .foregroundColor(showBookmarksDrawer ? .cyan : .gray)
                         }
                         
@@ -219,7 +219,7 @@ struct BrowserView: View {
                             showSettingsPopup = true
                         }) {
                             Image(systemName: "gearshape.fill")
-                                .font(.system(size: 16))
+                                .font(.system(size: 14.5))
                                 .foregroundColor(.gray)
                         }
                     }
@@ -236,7 +236,7 @@ struct BrowserView: View {
                     if tabs.isEmpty {
                         VStack {
                             Spacer()
-                            Text("NO ACTIVE TABS.").font(.system(size: 12, design: .monospaced)).foregroundColor(.gray)
+                            Text("NO ACTIVE TABS.").font(.system(size: 10.5, design: .monospaced)).foregroundColor(.gray)
                             Spacer()
                         }
                     } else {
@@ -260,17 +260,17 @@ struct BrowserView: View {
                 VStack(spacing: 16) {
                     HStack {
                         Image(systemName: "slider.horizontal.3").foregroundColor(.cyan)
-                        Text("BROWSER CONFIG").font(.system(size: 14, weight: .bold, design: .monospaced)).foregroundColor(.white)
+                        Text("BROWSER CONFIG").font(.system(size: 12.5, weight: .bold, design: .monospaced)).foregroundColor(.white)
                         Spacer()
                     }
                     
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Default Homepage & Home URL:")
-                            .font(.system(size: 10, design: .monospaced))
+                            .font(.system(size: 8.5, design: .monospaced))
                             .foregroundColor(.gray)
                         
                         TextField("https://...", text: $newHomepageInput)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: 10.5, design: .monospaced))
                             .padding(10)
                             .background(Color.black)
                             .foregroundColor(.white)
@@ -283,7 +283,7 @@ struct BrowserView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle(isOn: $isMobileMode) {
                             Text("Request Mobile Websites")
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.system(size: 9.5, design: .monospaced))
                                 .foregroundColor(.gray)
                         }
                         .toggleStyle(SwitchToggleStyle(tint: .cyan))
@@ -291,7 +291,7 @@ struct BrowserView: View {
                     
                     Button(action: saveSettings) {
                         Text("SAVE & APPLY")
-                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .font(.system(size: 9.5, weight: .black, design: .monospaced))
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
                             .background(Color.cyan)
@@ -311,7 +311,7 @@ struct BrowserView: View {
             if showDuplicateToast {
                 VStack {
                     Text("ERROR: BOOKMARK EXACT URL ALREADY EXISTS")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 16)
                         .background(Color.red.opacity(0.9))
@@ -325,11 +325,7 @@ struct BrowserView: View {
                 .animation(.easeInOut, value: showDuplicateToast)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .darkOSInjectModule)) { notification in
-            if let localURL = notification.object as? URL {
-                injectLocalModuleTab(fileURL: localURL)
-            }
-        }
+
         .onAppear {
             loadPersistentBookmarks()
             if tabs.isEmpty {
@@ -354,12 +350,12 @@ struct BrowserView: View {
     private var bookmarksListView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(">>> BOOKMARKS INDEX")
-                .font(.system(size: 9, design: .monospaced)).foregroundColor(.cyan.opacity(0.7))
+                .font(.system(size: 7.5, design: .monospaced)).foregroundColor(.cyan.opacity(0.7))
                 .padding(.horizontal)
             
             if bookmarks.isEmpty {
                 Text("NO SAVED DOMAIN POINTERS COMPILED.")
-                    .font(.system(size: 10, design: .monospaced)).foregroundColor(.gray)
+                    .font(.system(size: 8.5, design: .monospaced)).foregroundColor(.gray)
                     .padding(.horizontal).padding(.vertical, 4)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -367,7 +363,7 @@ struct BrowserView: View {
                         ForEach(bookmarks) { bookmark in
                             HStack(spacing: 6) {
                                 Text(bookmark.name.uppercased())
-                                    .font(.system(size: 10, design: .monospaced))
+                                    .font(.system(size: 8.5, design: .monospaced))
                                     .foregroundColor(.white)
                                     .onTapGesture {
                                         urlInputString = bookmark.urlString
@@ -376,7 +372,7 @@ struct BrowserView: View {
                                 
                                 Button(action: { removeBookmark(bookmark) }) {
                                     Image(systemName: "minus.circle.fill")
-                                        .font(.system(size: 9))
+                                        .font(.system(size: 7.5))
                                         .foregroundColor(.red.opacity(0.6))
                                 }
                             }
@@ -421,12 +417,7 @@ struct BrowserView: View {
         }
     }
     
-    private func injectLocalModuleTab(fileURL: URL) {
-        let labelName = fileURL.deletingPathExtension().lastPathComponent.uppercased()
-        let newTab = BrowserTab(url: fileURL, title: labelName, store: WebViewStore(isMobile: isMobileMode))
-        tabs.append(newTab)
-        switchTab(to: newTab)
-    }
+
     
     private func createNewTab(with url: URL? = nil) {
         let startURL = url ?? URL(string: homepageURL) ?? URL(string: "https://www.google.com")!

@@ -1,14 +1,18 @@
-// DarkOS/FileManagerView.swift
+// DarkOS/ModuleManagerView.swift
 
 import SwiftUI
 import UniformTypeIdentifiers
+import Combine
 
-struct FileManagerView: View {
+struct ModuleManagerView: View {
     @ObservedObject var fs = FileSystemManager.shared
     @ObservedObject var pm = ProcessManager.shared
     @ObservedObject private var theme = ThemeManager.shared
     
     @Binding var isPresented: Bool
+    
+    @State private var currentDirectory: URL = FileSystemManager.shared.modulesDirectory
+    @State private var localBackStack: [URL] = []
     
     @State private var webURLString = ""
     @State private var downloadName = ""
@@ -34,7 +38,20 @@ struct FileManagerView: View {
     @State private var htmlAlertFile: URL? = nil
     
     private var currentListItems: [URL] {
-        viewTrashBinMode ? fs.listTrashContents() : fs.listCurrentDirectoryContents()
+        if viewTrashBinMode {
+            return fs.listTrashContents().filter { ["html", "js"].contains($0.pathExtension.lowercased()) }
+        } else {
+            let contents = (try? FileManager.default.contentsOfDirectory(at: currentDirectory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+            return contents.sorted { url1, url2 in
+                var isDir1: ObjCBool = false
+                var isDir2: ObjCBool = false
+                FileManager.default.fileExists(atPath: url1.path, isDirectory: &isDir1)
+                FileManager.default.fileExists(atPath: url2.path, isDirectory: &isDir2)
+                if isDir1.boolValue && !isDir2.boolValue { return true }
+                if !isDir1.boolValue && isDir2.boolValue { return false }
+                return url1.lastPathComponent.lowercased() < url2.lastPathComponent.lowercased()
+            }
+        }
     }
     
     var body: some View {
@@ -50,7 +67,14 @@ struct FileManagerView: View {
         }
         .alert("Create Sub-Directory", isPresented: $showNewFolderAlert) {
             TextField("Folder Identity Name", text: $folderNameInput).autocapitalization(.none)
-            Button("Allocate") { if !folderNameInput.isEmpty { fs.createFolder(named: folderNameInput) }; folderNameInput = "" }
+            Button("Allocate") {
+                if !folderNameInput.isEmpty {
+                    let newFolderURL = currentDirectory.appendingPathComponent(folderNameInput)
+                    try? FileManager.default.createDirectory(at: newFolderURL, withIntermediateDirectories: true, attributes: nil)
+                    fs.objectWillChange.send()
+                }
+                folderNameInput = ""
+            }
             Button("Cancel", role: .cancel) { folderNameInput = "" }
         }
         .alert("Rename Drive Asset", isPresented: $showRenameAlert) {
@@ -78,8 +102,8 @@ struct FileManagerView: View {
     private var headerBar: some View {
             HStack {
                 Image(systemName: "folder.fill").foregroundColor(.yellow)
-                Text(viewTrashBinMode ? "Recycle Bin subsystem" : "File Explorer // Network Storage")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                Text(viewTrashBinMode ? "Recycle Bin subsystem" : "Module Manager // Local & Remote Compilation")
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .foregroundColor(theme.text)
                 Spacer()
             }
@@ -91,24 +115,33 @@ struct FileManagerView: View {
         HStack(spacing: 12) {
             if !viewTrashBinMode {
                 HStack(spacing: 6) {
-                    Button(action: { fs.navigateBack() }) { Image(systemName: "arrow.left.circle.fill").font(.title3).foregroundColor(fs.backStack.isEmpty ? .gray : theme.accent) }.disabled(fs.backStack.isEmpty)
-                    Button(action: { fs.navigateForward() }) { Image(systemName: "arrow.right.circle.fill").font(.title3).foregroundColor(fs.forwardStack.isEmpty ? .gray : theme.accent) }.disabled(fs.forwardStack.isEmpty)
-                    Button(action: { showNewFolderAlert = true }) { Image(systemName: "folder.badge.plus.fill").font(.system(size: 16)).foregroundColor(.green) }
+                    Button(action: {
+                        if !localBackStack.isEmpty {
+                            currentDirectory = localBackStack.removeLast()
+                        }
+                    }) {
+                        Image(systemName: "arrow.left.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(localBackStack.isEmpty ? .gray : theme.accent)
+                    }
+                    .disabled(localBackStack.isEmpty)
+                    
+                    Button(action: { showNewFolderAlert = true }) { Image(systemName: "folder.badge.plus.fill").font(.system(size: 14.5)).foregroundColor(.green) }
                 }
             }
             HStack {
-                Image(systemName: "desktopcomputer").font(.caption).foregroundColor(.gray)
-                Text(getCurrentPathDisplay()).font(.system(size: 11, design: .monospaced)).foregroundColor(theme.text.opacity(0.8))
+                Image(systemName: "desktopcomputer").font(.caption2).foregroundColor(.gray)
+                Text(getCurrentPathDisplay()).font(.system(size: 9.5, design: .monospaced)).foregroundColor(theme.text.opacity(0.8))
                 Spacer()
             }
             .padding(8).background(theme.panelDeep).cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.border, lineWidth: 1))
             
             if !viewTrashBinMode && fileClipboard != nil {
-                Button(action: { executePasteAction() }) { Text("PASTE").font(.system(size: 11, weight: .black, design: .rounded)).foregroundColor(.yellow) }
+                Button(action: { executePasteAction() }) { Text("PASTE").font(.system(size: 9.5, weight: .black, design: .rounded)).foregroundColor(.yellow) }
             }
             
             Button(action: { viewTrashBinMode.toggle() }) {
-                Text(viewTrashBinMode ? "Computer Drives" : "Recycle Bin").font(.system(size: 10, weight: .bold, design: .rounded)).foregroundColor(.white).padding(.horizontal, 10).padding(.vertical, 6).background(viewTrashBinMode ? Color.green.opacity(0.6) : Color.orange.opacity(0.6)).cornerRadius(4)
+                Text(viewTrashBinMode ? "Computer Drives" : "Recycle Bin").font(.system(size: 8.5, weight: .bold, design: .rounded)).foregroundColor(.white).padding(.horizontal, 10).padding(.vertical, 6).background(viewTrashBinMode ? Color.green.opacity(0.6) : Color.orange.opacity(0.6)).cornerRadius(4)
             }
         }
         .padding().background(theme.panel)
@@ -116,19 +149,19 @@ struct FileManagerView: View {
     
     private var compilerWorkspace: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("URL Compiler").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.accent)
+            Text("URL Compiler").font(.system(size: 9.5, weight: .bold, design: .rounded)).foregroundColor(theme.accent)
             HStack(spacing: 8) {
-                TextField("URL Source Link...", text: $webURLString).textFieldStyle(.plain).font(.system(size: 12, design: .monospaced)).padding(8).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
-                TextField("App Label", text: $downloadName).textFieldStyle(.plain).font(.system(size: 12, design: .monospaced)).padding(8).frame(width: 100).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
+                TextField("URL Source Link...", text: $webURLString).textFieldStyle(.plain).font(.system(size: 10.5, design: .monospaced)).padding(8).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
+                TextField("App Label", text: $downloadName).textFieldStyle(.plain).font(.system(size: 10.5, design: .monospaced)).padding(8).frame(width: 100).background(theme.panelDeep).foregroundColor(theme.text).cornerRadius(4)
                 Button(action: {
                     fs.downloadApp(from: webURLString, saveAs: downloadName) { success in
                         installAlertMessage = success ? "MANIFEST MODULE COMPILED SUCCESSFULLY." : "PACKET DISCOVERY INTERRUPT EXCEPTION."
                         showInstallAlert = true; if success { webURLString = ""; downloadName = "" }
                     }
-                }) { Text("Compile").font(.system(size: 11, weight: .black, design: .rounded)).padding(.vertical, 8).padding(.horizontal, 16).background(theme.accent).foregroundColor(.white).cornerRadius(4) }
+                }) { Text("Compile").font(.system(size: 9.5, weight: .black, design: .rounded)).padding(.vertical, 8).padding(.horizontal, 16).background(theme.accent).foregroundColor(.white).cornerRadius(4) }
             }
             Button(action: { showLocalFilePicker = true }) {
-                Label("Import External Module (.html / .js)", systemImage: "square.and.arrow.down.fill").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(theme.text).frame(maxWidth: .infinity).padding(10).background(theme.panel).cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.border, lineWidth: 1))
+                Label("Import External Module (.html / .js)", systemImage: "square.and.arrow.down.fill").font(.system(size: 9.5, weight: .bold, design: .rounded)).foregroundColor(theme.text).frame(maxWidth: .infinity).padding(10).background(theme.panel).cornerRadius(4).overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.border, lineWidth: 1))
             }
         }
         .padding().background(theme.panel)
@@ -137,17 +170,25 @@ struct FileManagerView: View {
     private var fileListView: some View {
         List {
             if currentListItems.isEmpty {
-                Text("No data structures mapped inside this segment cluster.").font(.system(size: 12, design: .rounded)).foregroundColor(.gray).listRowBackground(theme.bgSolid)
+                Text("No data structures mapped inside this segment cluster.").font(.system(size: 10.5, design: .rounded)).foregroundColor(.gray).listRowBackground(theme.bgSolid)
             } else {
                 ForEach(currentListItems, id: \.self) { file in
                     HStack {
                         Image(systemName: file.isDarkOSDirectory ? "folder.fill" : fileIcon(for: file)).foregroundColor(viewTrashBinMode ? .orange : (file.isDarkOSDirectory ? .yellow : theme.accent))
-                        Text(file.lastPathComponent.uppercased()).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundColor(theme.text)
+                        Text(file.lastPathComponent.uppercased()).font(.system(size: 10.5, weight: .medium, design: .monospaced)).foregroundColor(theme.text)
                         Spacer()
-                        Text(file.isDarkOSDirectory ? "File Folder" : "\(file.pathExtension.uppercased()) File").font(.system(size: 10, design: .rounded)).foregroundColor(theme.textMuted)
+                        Text(file.isDarkOSDirectory ? "File Folder" : "\(file.pathExtension.uppercased()) File").font(.system(size: 8.5, design: .rounded)).foregroundColor(theme.textMuted)
                     }
                     .padding(.vertical, 4).listRowBackground(theme.bgSolid).contentShape(Rectangle())
-                    .onTapGesture { if viewTrashBinMode { return }; if file.isDarkOSDirectory { fs.navigateIntoFolder(file) } else { routeFileSelection(file) } }
+                    .onTapGesture {
+                        if viewTrashBinMode { return }
+                        if file.isDarkOSDirectory {
+                            localBackStack.append(currentDirectory)
+                            currentDirectory = file
+                        } else {
+                            routeFileSelection(file)
+                        }
+                    }
                     .contextMenu { FileContextMenu(file: file, isDir: file.isDarkOSDirectory, viewTrashBinMode: viewTrashBinMode, renameTargetURL: $renameTargetURL, renameInputText: $renameInputText, showRenameAlert: $showRenameAlert, fileClipboard: $fileClipboard, clipboardIsCutOperation: $clipboardIsCutOperation) }
                 }
             }
@@ -157,8 +198,8 @@ struct FileManagerView: View {
     
     private func getCurrentPathDisplay() -> String {
         if viewTrashBinMode { return "ROOT://VIRTUAL_VOLUMES/.TRASH" }
-        let subPath = fs.currentDirectory.path.replacingOccurrences(of: fs.rootDirectory.path, with: "")
-        return "C:\\DarkOS\\Drive" + subPath.replacingOccurrences(of: "/", with: "\\").uppercased()
+        let subPath = currentDirectory.path.replacingOccurrences(of: fs.rootDirectory.path, with: "")
+        return "C:\\DarkOS\\Modules" + subPath.replacingOccurrences(of: "/", with: "\\").uppercased()
     }
     
     private func fileIcon(for url: URL) -> String {
@@ -178,7 +219,7 @@ struct FileManagerView: View {
     private func executePasteAction() {
         guard let source = fileClipboard else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        if clipboardIsCutOperation { fs.moveFile(fileURL: source, to: fs.currentDirectory); fileClipboard = nil } else { fs.copyFile(fileURL: source, to: fs.currentDirectory) }
+        if clipboardIsCutOperation { fs.moveFile(fileURL: source, to: currentDirectory); fileClipboard = nil } else { fs.copyFile(fileURL: source, to: currentDirectory) }
     }
 }
 
@@ -203,7 +244,7 @@ struct FileContextMenu: View {
             Button(action: { fileClipboard = file; clipboardIsCutOperation = true }) { Label("Cut", systemImage: "scissors") }
             Button(action: { fs.moveToTrash(fileURL: file) }) { Label("Move to Trash", systemImage: "trash.fill") }
             if !isDir {
-                Button(action: { _ = FileSafeManager.importFromInternalPath(sourceURL: file) }) { Label("Move to File_Safe", systemImage: "lock.doc.fill") }
+                Button(action: { _ = FileVaultManager.importFromInternalPath(sourceURL: file) }) { Label("Move to File Vault", systemImage: "lock.doc.fill") }
                 if ["html", "js"].contains(file.pathExtension.lowercased()) {
                     Divider()
                     Button(action: { fs.toggleDesktopShortcut(url: file) }) { Label(fs.desktopShortcuts.contains(file) ? "Unpin from Desktop" : "Pin to Desktop", systemImage: fs.desktopShortcuts.contains(file) ? "desktopcomputer" : "plus.rectangle.on.folder") }

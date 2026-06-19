@@ -5,8 +5,6 @@ import WebKit
 import Combine
 
 extension Notification.Name {
-    static let darkOSInjectModule = Notification.Name("darkOS_inject_local_module")
-    static let darkOSToggleFileManager = Notification.Name("darkOS_toggle_file_manager")
     static let darkOSToggleTaskManager = Notification.Name("darkOS_toggle_task_manager")
 }
 
@@ -101,6 +99,7 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
                 let userScript = WKUserScript(source: polyfillJS, injectionTime: .atDocumentStart, forMainFrameOnly: true)
                 configuration.userContentController.addUserScript(userScript)
                 configuration.userContentController.add(self, name: "darkOSStorageBridge")
+                configuration.userContentController.add(self, name: "darkOSFileSystemBridge")
             }
             
             let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -130,7 +129,7 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
                     </body>
                     </html>
                     """
-                    let runnerURL = FileSystemManager.shared.appsDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
+                    let runnerURL = FileSystemManager.shared.modulesDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
                     try? wrappedHTML.write(to: runnerURL, atomically: true, encoding: .utf8)
                     webView.loadFileURL(runnerURL, allowingReadAccessTo: standardizedReadAccess)
                 } else {
@@ -148,8 +147,9 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
     func terminateProcess(id: UUID) {
         if let process = runningProcesses.first(where: { $0.id == id }) {
             process.webView.configuration.userContentController.removeScriptMessageHandler(forName: "darkOSStorageBridge")
+            process.webView.configuration.userContentController.removeScriptMessageHandler(forName: "darkOSFileSystemBridge")
             let rawName = process.appURL.deletingPathExtension().lastPathComponent.uppercased()
-            let runnerURL = FileSystemManager.shared.appsDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
+            let runnerURL = FileSystemManager.shared.modulesDirectory.appendingPathComponent("\(rawName.lowercased())_boot.html")
             try? FileManager.default.removeItem(at: runnerURL)
         }
         runningProcesses.removeAll { $0.id == id }
@@ -159,11 +159,62 @@ class ProcessManager: NSObject, ObservableObject, WKScriptMessageHandler {
     }
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "darkOSStorageBridge",
-              let body = message.body as? [String: Any],
-              let appName = body["app"] as? String,
-              let action = body["action"] as? String, action == "sync",
-              let payloadJSON = body["payload"] as? String else { return }
-        saveStorageJSON(payloadJSON, for: appName)
+        if message.name == "darkOSStorageBridge" {
+            guard let body = message.body as? [String: Any],
+                  let appName = body["app"] as? String,
+                  let action = body["action"] as? String, action == "sync",
+                  let payloadJSON = body["payload"] as? String else { return }
+            saveStorageJSON(payloadJSON, for: appName)
+        } else if message.name == "darkOSFileSystemBridge" {
+            guard let body = message.body as? [String: Any],
+                  let action = body["action"] as? String else {
+                print("FileSystemBridge: invalid body or missing action")
+                return
+            }
+            print("FileSystemBridge: received action [\(action)]")
+            if action == "listMP3" {
+                let mp3s = scanForMP3Files()
+                print("FileSystemBridge: scanned \(mp3s.count) MP3 files in total")
+                let jsArray = mp3s.map { "{\"name\":\"\($0.name.replacingOccurrences(of: "\"", with: "\\\""))\",\"url\":\"\($0.url.replacingOccurrences(of: "\"", with: "\\\""))\"}" }
+                let jsArrayStr = "[\(jsArray.joined(separator: ","))]"
+                let jsCode = "if (window.onMP3ListReceived) { window.onMP3ListReceived(\(jsArrayStr)); }"
+                message.webView?.evaluateJavaScript(jsCode) { result, error in
+                    if let error = error {
+                        print("FileSystemBridge: JS evaluation error: \(error.localizedDescription)")
+                    } else {
+                        print("FileSystemBridge: JS evaluation success - loaded track array")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func scanForMP3Files() -> [(name: String, url: String)] {
+        let fs = FileSystemManager.shared
+        let root = fs.rootDirectory.resolvingSymlinksInPath()
+        let modulesDir = fs.modulesDirectory.resolvingSymlinksInPath()
+        print("FileSystemBridge: scanning root directory -> \(root.path)")
+        
+        var result: [(name: String, url: String)] = []
+        
+        if let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) {
+            for case let fileURL as URL in enumerator {
+                let resolvedURL = fileURL.resolvingSymlinksInPath()
+                print("FileSystemBridge: found file path -> \(resolvedURL.path)")
+                if resolvedURL.path.contains(modulesDir.path) || resolvedURL.path.contains("/.system") || resolvedURL.path.contains("/.Trash") {
+                    print("FileSystemBridge: skipping system/module file -> \(resolvedURL.lastPathComponent)")
+                    continue
+                }
+                if resolvedURL.pathExtension.lowercased() == "mp3" {
+                    let relativePart = resolvedURL.path.replacingOccurrences(of: root.path, with: "")
+                    let cleanRelative = relativePart.hasPrefix("/") ? String(relativePart.dropFirst()) : relativePart
+                    let relativeURL = "../" + cleanRelative
+                    let name = resolvedURL.lastPathComponent
+                    print("FileSystemBridge: registering MP3 node -> [\(name)] at [\(relativeURL)]")
+                    result.append((name: name, url: relativeURL))
+                }
+            }
+        }
+        return result
     }
 }

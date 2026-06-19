@@ -13,16 +13,18 @@ struct InternalFileViewer: View {
     @State private var isText = false
     @State private var isImage = false
     @State private var isVideo = false
+    @State private var isPDF = false
+    @State private var isAudio = false
     
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text(fileURL.lastPathComponent.uppercased())
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .foregroundColor(.red)
                 Spacer()
                 Button("CLOSE") { dismiss() }
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(size: 9.5, design: .monospaced))
                     .foregroundColor(.white)
             }
             .padding()
@@ -40,10 +42,16 @@ struct InternalFileViewer: View {
                 } else if isVideo {
                     VideoPlayer(player: AVPlayer(url: fileURL))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if isPDF {
+                    PDFKitView(url: fileURL)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if isAudio {
+                    AudioPlayerView(url: fileURL)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if isText {
                     ScrollView {
                         Text(textBuffer)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(.system(size: 10.5, design: .monospaced))
                             .foregroundColor(.white)
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,10 +59,10 @@ struct InternalFileViewer: View {
                 } else {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.questionmark")
-                            .font(.largeTitle)
+                            .font(.caption2)
                             .foregroundColor(.gray)
                         Text("UNRECOGNIZED FILE TYPE SYSTEM EXTENSION")
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.system(size: 9.5, design: .monospaced))
                     }
                     .frame(maxHeight: .infinity)
                 }
@@ -84,6 +92,10 @@ struct InternalFileViewer: View {
             isImage = true
         } else if ["mp4", "mov", "m4v"].contains(ext) {
             isVideo = true
+        } else if ext == "pdf" {
+            isPDF = true
+        } else if ["mp3", "wav", "m4a"].contains(ext) {
+            isAudio = true
         } else {
             isText = true
             if let content = try? String(contentsOf: fileURL, encoding: .utf8) {
